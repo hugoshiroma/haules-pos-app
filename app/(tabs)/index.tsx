@@ -7,12 +7,18 @@ import { useRouter } from 'expo-router';
 // --- Header da Tela ---
 const Header = () => {
   const router = useRouter();
+  const { activateTerminal } = useCart();
   return (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>Haules PoS</Text>
-      <TouchableOpacity onPress={() => router.push('/scanner')}>
-        <Text style={styles.scannerButtonText}>Escanear Cliente</Text>
-      </TouchableOpacity>
+      <View style={styles.headerActions}>
+        <TouchableOpacity onPress={() => router.push('/scanner')}>
+          <Text style={styles.scannerButtonText}>Escanear Cliente</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={activateTerminal} style={{marginLeft: 16}}>
+          <Text style={styles.scannerButtonText}>Ativar Terminal</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -149,6 +155,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderColor: '#e0e0e0',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 20,

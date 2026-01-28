@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from "react";
 import { Alert } from "react-native";
-import { plugPag, doPayment } from 'react-native-pagseguro-plugpag';
+import { plugPag, doPayment, initializeAndActivatePinPad } from 'react-native-pagseguro-plugpag';
 import { validateDiscount, loginUser, createPurchase, completePurchase } from "../lib/supabase";
 import { log } from '../lib/logging';
 
@@ -36,6 +36,7 @@ type CartContextType = {
   isValidatingDiscount: boolean;
   login: (email: string, pass: string) => Promise<any>;
   token: string | null;
+  activateTerminal: () => void;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -50,6 +51,27 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [token, setToken] = useState<string | null>(null); // Token do funcionário
   const [customerScanInfo, setCustomerScanInfo] = useState<CustomerScanInfo | null>(null);
+
+  const handleActivateTerminal = async () => {
+    await log('Iniciando a ativação do terminal...');
+    try {
+      // Usando o código de ativação para ambiente de desenvolvimento
+      const data = await initializeAndActivatePinPad('403938');
+      await log(`Resposta da ativação: ${JSON.stringify(data)}`);
+
+      if (data.result !== 0) { // 0 significa sucesso
+        Alert.alert('Erro ao ativar terminal', data.errorMessage || 'Ocorreu um erro desconhecido.');
+        await log(`Falha na ativação: ${data.errorMessage}`, 'ERROR');
+        return;
+      }
+      Alert.alert('Terminal ativado com sucesso!', `ID do Terminal: ${data.terminalId}`);
+      await log(`Terminal ativado com sucesso! ID: ${data.terminalId}`);
+    } catch (error: any) {
+      await log(`Erro crítico na ativação do terminal: ${error.message}`, 'ERROR');
+      console.error(error);
+      Alert.alert('Erro Crítico', 'Ocorreu um erro inesperado ao tentar ativar o terminal.');
+    }
+  };
 
   const handleLogin = async (email: string, pass: string) => {
     const [error, response] = await loginUser(email, pass);
@@ -245,7 +267,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <CartContext.Provider
-      value={{ items, addItem, removeItem, total, clearCart, confirmOrder: handleConfirmOrder, isLoading, applyCoupon, finalAmount, discount, isValidatingDiscount, login: handleLogin, token }}
+      value={{ items, addItem, removeItem, total, clearCart, confirmOrder: handleConfirmOrder, isLoading, applyCoupon, finalAmount, discount, isValidatingDiscount, login: handleLogin, token, activateTerminal: handleActivateTerminal }}
     >
       {children}
     </CartContext.Provider>
