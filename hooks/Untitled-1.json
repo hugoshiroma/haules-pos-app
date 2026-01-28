@@ -1,0 +1,28 @@
+ LOG  Cache de produtos válido encontrado.
+ LOG  Tentando carregar produtos do cache...
+ LOG  Cache de produtos válido encontrado.
+ LOG  Resultado do cache: [
+  {
+    "id": "prod_01JWVSAQ02DWG4E85TWT4C3KCX",
+    "title": "Caipirinha de Rúcula",
+    "thumbnail": "",
+    "variants": [
+      {
+        "id": "variant_01JWVSASDY0RDWDK1CC2Y4519K",
+        "title": "Default variant",
+        "prices": []
+      }
+    ]
+  },
+  {
+    "id": "prod_01JX16ANTCDB3YP151GQECVT8H",
+    "title": "Haules Burger",
+    "thumbnail": null,
+    "variants": [
+      {
+        "id": "variant_01JX16AQ8GT5ADCVA6QXV54QX7",
+        "title": "Default variant",
+        "prices": []
+      }
+    ]
+  },
