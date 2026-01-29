@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { Alert } from "react-native";
-import { initializeAndActivatePinPad } from 'react-native-pagseguro-plugpag';
+import { initializeAndActivatePinPad, doPayment } from 'react-native-pagseguro-plugpag';
 import { log } from '../lib/logging';
 import { completePurchase, createPurchase, loginUser, validateDiscount } from "../lib/supabase";
+import * as SecureStore from 'expo-secure-store';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 export type CartItem = {
   id: string; // Este será o variant_id
@@ -43,15 +45,20 @@ type CartContextType = {
   finalAmount: number;
   discount: number;
   isValidatingDiscount: boolean;
-  login: (email: string, pass: string) => Promise<any>;
+  login: (email: string, pass: string, saveSecurely?: boolean) => Promise<any>;
   token: string | null; // Token do funcionário
   activateTerminal: () => void;
   statusConfig: StatusConfig;
   showStatus: (type: StatusType, title: string, message: string) => void;
   hideStatus: () => void;
+  biometricLogin: () => Promise<boolean>;
+  hasSavedCredentials: boolean;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+
+const SECURE_AUTH_KEY = 'haules_pos_auth';
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +70,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [token, setToken] = useState<string | null>(null); // Token do funcionário
   const [customerScanInfo, setCustomerScanInfo] = useState<CustomerScanInfo | null>(null);
+  const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
   
   const [statusConfig, setStatusConfig] = useState<StatusConfig>({
     visible: false,
@@ -71,9 +79,30 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     message: '',
   });
 
+  useEffect(() => {
+    checkSavedCredentials();
+  }, []);
+
+  const checkSavedCredentials = async () => {
+    try {
+      const savedData = await SecureStore.getItemAsync(SECURE_AUTH_KEY);
+      if (savedData) {
+        const { timestamp } = JSON.parse(savedData);
+        const age = Date.now() - timestamp;
+        if (age < SEVEN_DAYS_MS) {
+          setHasSavedCredentials(true);
+        } else {
+          await SecureStore.deleteItemAsync(SECURE_AUTH_KEY);
+          setHasSavedCredentials(false);
+        }
+      }
+    } catch (e) {
+      setHasSavedCredentials(false);
+    }
+  };
+
   const showStatus = (type: StatusType, title: string, message: string) => {
     setStatusConfig({ visible: true, type, title, message });
-    // Se for sucesso ou info, fecha automático depois de um tempo se não for erro
     if (type === 'success' || type === 'info') {
       setTimeout(() => hideStatus(), 2500);
     }
@@ -94,14 +123,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       }
       await log('SDK detectada. Chamando initializeAndActivatePinPad com código 403938...');
 
-      // Timeout manual de 5 segundos
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('TIMEOUT: A SDK da PagSeguro não respondeu em 5s.')), 5000)
       );
 
       const activationPromise = initializeAndActivatePinPad('403938');
-
-      // Corrida entre a ativação e o timeout
       const data: any = await Promise.race([activationPromise, timeoutPromise]);
       
       await log(`Checkpoint 2: Resposta recebida da SDK: ${JSON.stringify(data)}`);
@@ -124,7 +150,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const handleLogin = async (email: string, pass: string) => {
+  const handleLogin = async (email: string, pass: string, saveSecurely: boolean = true) => {
     const [error, response] = await loginUser(email, pass);
     if (error) {
       showStatus('error', 'Erro no Login', String(error));
@@ -132,8 +158,47 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }
     if (response) {
       setToken(response.token);
+      if (saveSecurely) {
+        await SecureStore.setItemAsync(SECURE_AUTH_KEY, JSON.stringify({
+          email,
+          pass,
+          timestamp: Date.now()
+        }));
+        setHasSavedCredentials(true);
+      }
     }
     return response;
+  };
+
+  const biometricLogin = async (): Promise<boolean> => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      if (!hasHardware || !isEnrolled) {
+        showStatus('warning', 'Biometria', 'Biometria não disponível ou não configurada.');
+        return false;
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Login Haules PoS',
+        fallbackLabel: 'Usar Senha',
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        const savedData = await SecureStore.getItemAsync(SECURE_AUTH_KEY);
+        if (savedData) {
+          const { email, pass } = JSON.parse(savedData);
+          const response = await handleLogin(email, pass, false);
+          return !!response;
+        }
+      }
+      return false;
+    } catch (e) {
+      console.error('Erro na biometria:', e);
+      return false;
+    }
   };
 
   const validateDiscountCode = async (couponId: string, userId: string, itemsInCart: ItemsInCartType) => {
@@ -143,7 +208,6 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }
     setCouponId(couponId);
     setIsValidatingDiscount(true);
-    // Usa o token do funcionário para a validação
     const [error, response] = await validateDiscount(couponId, total, userId, token, itemsInCart);
 
     if (error) {
@@ -192,7 +256,6 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       region_id: process.env.EXPO_PUBLIC_REGION_ID!,
     };
   
-    // 1 & 2. Criar pedido e Cobrar na maquininha em PARALELO
     await log('Executando Passo 1 (Medusa) e Passo 2 (PagSeguro) em paralelo...');
     
     const amountToCharge = finalAmount > 0 ? finalAmount : total;
@@ -205,7 +268,6 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    // Função para o pagamento (SIMULADA COM 8s E LOGS DETALHADOS)
     const performPayment = async () => {
       const startTime = Date.now();
       await log(`[PAGAMENTO] INÍCIO - Solicitando R$${amountToCharge.toFixed(2)} na maquininha...`);
@@ -236,13 +298,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       const medusaStartTime = Date.now();
-      console.log(`[MEDUSA] Início da criação do pedido às: ${new Date(medusaStartTime).toLocaleTimeString()}`);
-      
-      // Dispara as duas promessas ao mesmo tempo
       const [createResponseResult, paymentResponse]: [any, any] = await Promise.all([
         createPurchase(purchaseData, token).then(res => {
           const medusaEndTime = Date.now();
-          console.log(`[MEDUSA] Fim da criação do pedido às: ${new Date(medusaEndTime).toLocaleTimeString()} (Duração: ${(medusaEndTime - medusaStartTime)/1000}s)`);
           if (res[0]) throw new Error(`Erro Medusa: ${JSON.stringify(res[0])}`);
           return res[1];
         }),
@@ -250,37 +308,26 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       ]);
 
       await log(`[MAQUININHA] Resposta: ${JSON.stringify(paymentResponse)}`);
-      
       if (paymentResponse.result !== 0) {
         throw new Error(paymentResponse.errorMessage || 'Pagamento na maquininha falhou.');
       }
       
       await log("[SUCESSO] Pagamento aprovado e Pedido criado.");
 
-      // 3. Processo de finalização em "Background"
       const orderId = createResponseResult.order.id;
       const currentTotal = total;
       const currentCouponId = couponId;
 
-      // --- FEEDBACK IMEDIATO ---
       setIsLoading(false);
       showStatus('success', 'Pagamento Aprovado', 'Pedido finalizado com sucesso.');
       clearCart();
 
-      // Executa a completude no Medusa por trás dos panos
       (async () => {
-        const bgStartTime = Date.now();
-        await log(`[BACKGROUND] Iniciando completude do pedido ${orderId}...`);
-        console.log(`[BACKGROUND] Iniciou às: ${new Date(bgStartTime).toLocaleTimeString()}`);
-        
         try {
           const [completeError, completeResponse] = await completePurchase(orderId, currentCouponId, currentTotal, token);
-          
-          const bgEndTime = Date.now();
           if (completeError) {
             await log(`[BACKGROUND ERROR] Falha no pedido ${orderId}: ${JSON.stringify(completeError)}`, 'ERROR');
           } else {
-            console.log(`[BACKGROUND SUCCESS] Finalizou às: ${new Date(bgEndTime).toLocaleTimeString()} (Duração: ${(bgEndTime - bgStartTime)/1000}s)`);
             await log(`[BACKGROUND SUCCESS] Pedido ${orderId} finalizado.`);
           }
         } catch (bgError: any) {
@@ -300,7 +347,6 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   const applyCoupon = (couponId: string, userId: string, customerEmail: string) => {
     setCustomerScanInfo({ userId, email: customerEmail });
-
     const mappedItemsInCart = items.map(item => ({
       product_id: item.product_id,
       quantity: item.quantity,
@@ -343,7 +389,6 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const clearCart = () => {
-    log('Limpando o carrinho.');
     setDiscount(0);
     setFinalAmount(0);
     setCoupon('');
@@ -362,7 +407,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         items, addItem, removeItem, total, clearCart, confirmOrder: handleConfirmOrder, 
         isLoading, applyCoupon, finalAmount, discount, isValidatingDiscount, login: handleLogin, 
         token, activateTerminal: handleActivateTerminal,
-        statusConfig, showStatus, hideStatus
+        statusConfig, showStatus, hideStatus, biometricLogin, hasSavedCredentials
       }}
     >
       {children}

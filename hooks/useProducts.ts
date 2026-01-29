@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { medusaAdmin } from "../lib/medusa";
 
 // TODO: Instalar a dependência: yarn add @react-native-async-storage/async-storage
@@ -96,34 +96,42 @@ const getCachedProducts = async (): Promise<Product[] | null> => {
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    const loadProducts = async () => {
+  const loadProducts = useCallback(async (forceFresh = false) => {
+    if (forceFresh) {
+      setIsRefreshing(true);
+    } else {
       setIsLoading(true);
-      setError(null);
-      const cachedProducts = await getCachedProducts();
-
-      if (cachedProducts) {
-        setProducts(cachedProducts);
-        setIsLoading(false);
-        // Opcional: buscar em background pra atualizar o cache se estiver velho
-        // fetchProducts();
-      } else {
-        try {
-          const freshProducts = await fetchProducts();
-          setProducts(freshProducts);
-        } catch (e: any) {
-          console.error("Erro ao buscar produtos:", e);
-          setError(e);
-        } finally {
-          setIsLoading(false);
-        }
+    }
+    
+    setError(null);
+    
+    try {
+      let data = null;
+      if (!forceFresh) {
+        data = await getCachedProducts();
       }
-    };
 
-    loadProducts();
+      if (data) {
+        setProducts(data);
+      } else {
+        const freshProducts = await fetchProducts();
+        setProducts(freshProducts);
+      }
+    } catch (e: any) {
+      console.error("Erro ao carregar produtos:", e);
+      setError(e);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   }, []);
 
-  return { products, isLoading, error };
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
+  return { products, isLoading, isRefreshing, error, refresh: () => loadProducts(true) };
 };
