@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Text, View, StyleSheet, Button, Linking, ActivityIndicator } from 'react-native';
 import { Camera, CameraType } from 'expo-camera';
 import { useRouter } from 'expo-router';
+import { useCart } from '../contexts/CartContext';
 
 export default function ScannerScreen() {
   const router = useRouter();
+  const { showStatus } = useCart();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
 
@@ -19,7 +21,8 @@ export default function ScannerScreen() {
 
   const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
     setScanned(true);
-    alert(`QR Code com o dado: ${data} foi escaneado!`);
+    showStatus('success', 'Cliente Identificado', `QR Code: ${data}`);
+    
     // TODO: Fazer o parse do 'data' para pegar as informações do cliente
     if (router.canGoBack()) {
       router.back();

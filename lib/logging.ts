@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const LOG_FILE = `${FileSystem.documentDirectory}app.log`;
 
@@ -24,9 +24,11 @@ export const log = async (message: string, level: LogLevel = 'INFO') => {
   const logEntry = `${timestamp} [${level}] - ${message}\n`;
 
   try {
-    await FileSystem.writeAsStringAsync(LOG_FILE, logEntry, {
+    // Lendo o conteúdo atual
+    const currentContent = await FileSystem.readAsStringAsync(LOG_FILE);
+    // Escrevendo o conteúdo novo concatenado ao antigo
+    await FileSystem.writeAsStringAsync(LOG_FILE, currentContent + logEntry, {
       encoding: FileSystem.EncodingType.UTF8,
-      append: true,
     });
   } catch (error) {
     console.error('Falha ao escrever no arquivo de log:', error);
