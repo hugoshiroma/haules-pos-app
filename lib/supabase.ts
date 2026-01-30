@@ -56,11 +56,13 @@ export async function validateDiscount(
   if (authError || !authData?.session?.access_token) {
     return [authError?.message || "unauthorized_supabase_session", undefined];
   }
+  
   const supabaseAccessToken = authData.session.access_token;
 
   const headers: Record<string, string> = {
     "x-access-token": token,
     Authorization: `Bearer ${supabaseAccessToken}`,
+    "Content-Type": "application/json",
   };
 
   const requestBody = {

@@ -1,72 +1,86 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, StyleSheet, Button, Linking, ActivityIndicator } from 'react-native';
-import { Camera, CameraType } from 'expo-camera';
+import { Text, View, StyleSheet, Button, ActivityIndicator, Dimensions } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useCart } from '../contexts/CartContext';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 export default function ScannerScreen() {
   const router = useRouter();
-  const { showStatus } = useCart();
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const { applyCoupon, isValidatingDiscount } = useCart();
+  const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
-  useEffect(() => {
-    const getCameraPermissions = async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    };
+  if (!permission) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#2196F3" />
+        <Text>Carregando permissões...</Text>
+      </View>
+    );
+  }
 
-    getCameraPermissions();
-  }, []);
+  if (!permission.granted) {
+    return (
+      <View style={styles.center}>
+        <Text style={{ textAlign: 'center', marginBottom: 15 }}>Precisamos da sua permissão para mostrar a câmera</Text>
+        <Button onPress={requestPermission} title="Conceder Permissão" />
+      </View>
+    );
+  }
 
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
-    setScanned(true);
-    showStatus('success', 'Cliente Identificado', `QR Code: ${data}`);
+  const handleBarCodeScanned = (result: any) => {
+    if (scanned || isValidatingDiscount) return;
     
-    // TODO: Fazer o parse do 'data' para pegar as informações do cliente
-    if (router.canGoBack()) {
+    const data = result.data;
+    if (!data) return;
+
+    // Formato esperado: userCouponId|userId|email
+    const parts = data.split('|');
+    
+    if (parts.length >= 2) {
+      setScanned(true);
+      const userCouponId = parts[0].trim();
+      const userId = parts[1].trim();
+      
+      // GAMBIARRA TEMPORÁRIA: O scanner está lendo "+" como " " (espaço).
+      // Forçamos a volta do "+" para não quebrar a validação no Medusa/Supabase.
+      let email = parts[2] ? parts[2].trim() : '';
+      if (email.includes(' ')) {
+        email = email.replace(/ /g, '+');
+      }
+
+      // Aplica o cupom e volta imediatamente pra tela principal
+      applyCoupon(userCouponId, userId, email);
       router.back();
     }
   };
 
-  if (hasPermission === null) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text>Requisitando permissão da câmera...</Text>
-      </View>
-    );
-  }
-  if (hasPermission === false) {
-    return (
-      <View style={styles.center}>
-        <Text>Sem acesso à câmera</Text>
-        <Button title="Abrir Configurações" onPress={() => Linking.openSettings()} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <Camera
-        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
-        type={CameraType.back}
+      <CameraView
         style={StyleSheet.absoluteFillObject}
-      />
-      <View style={styles.overlay}>
-        <View style={styles.layerTop} />
-        <View style={styles.layerCenter}>
-          <View style={styles.layerLeft} />
-          <View style={styles.focused} />
-          <View style={styles.layerRight} />
+        facing="back"
+        barcodeScannerSettings={{
+          barcodeTypes: ["qr"],
+        }}
+        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.layerTop}>
+            <Text style={styles.scanText}>Escaneie o QR Code do Cliente</Text>
+          </View>
+          <View style={styles.layerCenter}>
+            <View style={styles.layerLeft} />
+            <View style={styles.focused} />
+            <View style={styles.layerRight} />
+          </View>
+          <View style={styles.layerBottom}>
+            <Text style={{ color: '#aaa', marginTop: 20 }}>Posicione o código no quadrado</Text>
+          </View>
         </View>
-        <View style={styles.layerBottom} />
-      </View>
-      {scanned && (
-        <View style={styles.scanAgainButtonContainer}>
-          <Button title={'Escanear Novamente'} onPress={() => setScanned(false)} />
-        </View>
-      )}
+      </CameraView>
     </View>
   );
 }
@@ -81,6 +95,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -89,6 +104,14 @@ const styles = StyleSheet.create({
   layerTop: {
     flex: 2,
     backgroundColor: opacity,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingBottom: 20
+  },
+  scanText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   layerCenter: {
     flex: 3,
@@ -102,7 +125,7 @@ const styles = StyleSheet.create({
     flex: 10,
     borderWidth: 2,
     borderColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 12,
   },
   layerRight: {
     flex: 1,
@@ -111,13 +134,6 @@ const styles = StyleSheet.create({
   layerBottom: {
     flex: 2,
     backgroundColor: opacity,
-  },
-  scanAgainButtonContainer: {
-    position: 'absolute',
-    bottom: 50,
-    alignSelf: 'center',
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 10,
+    alignItems: 'center'
   },
 });
