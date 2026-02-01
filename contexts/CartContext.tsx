@@ -3,7 +3,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Alert } from "react-native";
-import plugPag, { doPayment, initializeAndActivatePinPad } from 'react-native-pagseguro-plugpag';
+import { initializeAndActivatePinPad } from 'react-native-pagseguro-plugpag';
 import { log } from '../lib/logging';
 import { completePurchase, createPurchase, loginUser, validateDiscount } from "../lib/supabase";
 
@@ -57,6 +57,7 @@ type CartContextType = {
   hasSavedCredentials: boolean;
   isInitialLoading: boolean;
   isBiometricSupported: boolean;
+  biometricDebugInfo: string;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -77,6 +78,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [customerScanInfo, setCustomerScanInfo] = useState<CustomerScanInfo | null>(null);
   const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
   const [isBiometricSupported, setIsBiometricSupported] = useState(false);
+  const [biometricDebugInfo, setBiometricDebugInfo] = useState('');
   
   const [statusConfig, setStatusConfig] = useState<StatusConfig>({
     visible: false,
@@ -96,6 +98,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
       const supported = hasHardware && isEnrolled;
       setIsBiometricSupported(supported);
+      setBiometricDebugInfo(`HW:${hasHardware} Enr:${isEnrolled}`);
 
       const biometricEnabled = await AsyncStorage.getItem(BIOMETRIC_ENABLED_KEY);
       
@@ -253,20 +256,20 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   
     const performPayment = async () => {
       // SIMULAÇÃO PARA TESTE LOCAL (8 SEGUNDOS)
-      // return await new Promise((resolve) => {
-      //   setTimeout(() => resolve({ result: 0, terminalId: 'SIMULADO_LOCAL' }), 8000);
-      // }) as any;
+      return await new Promise((resolve) => {
+        setTimeout(() => resolve({ result: 0, terminalId: 'SIMULADO_LOCAL' }), 8000);
+      }) as any;
 
 
-      const amountInCents = Math.round(finalAmount * 100);
-      return await doPayment({
-        amount: amountInCents,
-        type: plugPag.paymentTypes.CREDIT,
-        printReceipt: true,
-        installments: 1,
-        installmentType: plugPag.installmentTypes.BUYER_INSTALLMENT,
-        userReference: "haules-pos",
-      });
+      // const amountInCents = Math.round(finalAmount * 100);
+      // return await doPayment({
+      //   amount: amountInCents,
+      //   type: plugPag.paymentTypes.CREDIT,
+      //   printReceipt: true,
+      //   installments: 1,
+      //   installmentType: plugPag.installmentTypes.BUYER_INSTALLMENT,
+      //   userReference: "haules-pos",
+      // });
 
     };
 
@@ -343,7 +346,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         items, addItem, removeItem, total, clearCart, confirmOrder: handleConfirmOrder, 
         isLoading, applyCoupon, finalAmount, discount, isValidatingDiscount, login: handleLogin, 
         logout: handleLogout, token, activateTerminal: handleActivateTerminal,
-        statusConfig, showStatus, hideStatus, biometricLogin, hasSavedCredentials, isInitialLoading
+        statusConfig, showStatus, hideStatus, biometricLogin, hasSavedCredentials, isInitialLoading,
+        isBiometricSupported, biometricDebugInfo
       }}
     >
       {children}

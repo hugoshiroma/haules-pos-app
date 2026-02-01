@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { login, biometricLogin, hasSavedCredentials, showStatus, token, statusConfig, hideStatus, isBiometricSupported } = useCart();
+  const { login, biometricLogin, hasSavedCredentials, showStatus, token, statusConfig, hideStatus, isBiometricSupported, biometricDebugInfo } = useCart();
   const router = useRouter();
   
   const [email, setEmail] = useState('');
@@ -160,6 +160,9 @@ export default function LoginScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.versionText}>v1.0.0 • Bar do Haules</Text>
+          <Text style={{ fontSize: 10, color: '#ccc', marginTop: 10 }}>
+            Debug: {biometricDebugInfo} | Supp:{String(isBiometricSupported)} | Saved:{String(hasSavedCredentials)}
+          </Text>
         </View>
       </ScrollView>
 

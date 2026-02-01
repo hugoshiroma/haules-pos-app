@@ -10,16 +10,21 @@ Este guia descreve os passos necessários que um desenvolvedor com experiência 
 
 ---
 
-## 1. Compatibilidade de Hardware
+## 1. Compatibilidade de Hardware e Limitações da Biblioteca
 
-A boa notícia é que o SDK PlugPag suporta uma vasta gama de maquininhas, incluindo modelos mais antigos que se conectam via Bluetooth a um celular. A lista inclui:
+A biblioteca `react-native-pagseguro-plugpag` instalada neste projeto é um **Wrapper** para o serviço da PagSeguro.
 
--   Moderninha Pro
--   Moderninha Wifi
--   Minizinha
--   Leitores Mini
+**IMPORTANTE:** Esta biblioteca **NÃO possui métodos de gerenciamento de Bluetooth** (como `scan`, `pair`, `connect`). Ela foi projetada primariamente para **Terminais Smart** (onde o app roda dentro da maquininha).
 
-Isso torna a solução viável para o cenário de um estabelecimento com hardware mais antigo.
+### Para usar com Moderninha Plus 2 (Bluetooth):
+Como a biblioteca não gerencia a conexão direta, você depende inteiramente do **Serviço da PagSeguro** rodando no celular Android.
+
+**Fluxo de Conexão Obrigatório:**
+1.  **Pareamento:** Pareie a Moderninha Plus 2 nas **Configurações de Bluetooth do Android** antes de abrir o app.
+2.  **App de Serviço:** É provável que você precise ter o aplicativo **"PagBank"** ou **"PagSeguro Vendas"** instalado e logado no mesmo aparelho celular. O "Wrapper" funciona enviando comandos para esse aplicativo, que é quem realmente detém a conexão com a maquininha.
+3.  **Sem Preset no Código:** Não há código a ser adicionado para "selecionar a maquininha". O comando `doPayment` tentará usar o dispositivo definido como padrão pelo serviço da PagSeguro no sistema.
+
+**Atenção:** Se o fluxo acima não funcionar (o app não encontrar a maquininha), significa que esta biblioteca (`react-native-pagseguro-plugpag`) está hardcoded para funcionar apenas em modo "Nativo Smart" e não suporta o modo MPOS (Celular + Maquininha). Nesse caso, a única solução seria trocar a biblioteca por uma implementação nativa direta do `PlugPag SDK` (não o Wrapper), o que exigiria reescrever a integração nativa do zero em Java/Kotlin.
 
 ---
 
@@ -40,9 +45,27 @@ Antes de começar a codificar, é necessário garantir os seguintes pré-requisi
 
 ---
 
-## 3. Visão Geral do Processo de Integração
+## 3. Alternativa Nativa (PlugPag SDK Padrão)
 
-A integração consiste em "ensinar" o React Native a conversar com as funcionalidades nativas do SDK PlugPag. Isso é feito através de uma **Bridge** (Ponte Nativa).
+**Cenário:** Você quer conectar seu app **direto** na maquininha via Bluetooth, sem depender do app "PagBank" rodando no fundo.
+
+**O Problema:** Nenhuma biblioteca React Native pública atual (incluindo `react-native-pagseguro-plugpag` e `react-native-plugpag-nitro`) implementa o **PlugPag SDK Padrão** com suporte a Bluetooth direto. Todas usam o "Service Wrapper" (que depende do app PagBank).
+
+**A Solução:** Você terá que construir uma **Bridge Nativa Customizada** do zero.
+
+1.  **Baixar o SDK Padrão:** No portal de desenvolvedores do PagSeguro, baixe o **PlugPag SDK** (não o Wrapper). Ele vem como arquivos `.aar`.
+2.  **Importar no Android:** Coloque os `.aar` na pasta `android/app/libs`.
+3.  **Criar o Módulo Nativo:**
+    *   Escreva uma classe Java/Kotlin que usa `PlugPagAppIdentification` (agora sim, passando nome e versão do app).
+    *   Implemente o método `plugPag.initializeAndActivatePinpad(activationData)` que no SDK padrão gerencia o Bluetooth.
+    *   Implemente métodos de `scan` e `connect` (métodos como `initBTConnection` existem no SDK padrão).
+4.  **Expor para o JS:** Crie a ponte React Method para chamar essas funções do seu JavaScript.
+
+**Complexidade:** Alta. Exige conhecimento sólido de Java/Kotlin e Android Bluetooth Permissions.
+
+---
+
+## 4. Visão Geral do Processo de Integração (Modo Wrapper - Atual)
 
 ### Passo 1: Download e Configuração do SDK Nativo
 
