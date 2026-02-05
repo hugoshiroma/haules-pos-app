@@ -285,8 +285,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       if (paymentResponse.result !== 0) throw new Error(paymentResponse.errorMessage);
       
       const orderId = createResponseResult.order.id;
-      const currentTotal = total;
+      const orderTotal = createResponseResult.order.total; // ✅ Total calculado pelo Medusa
       const currentCouponId = couponId;
+      const regionId = process.env.EXPO_PUBLIC_REGION_ID!; // ✅ Region ID da variável de ambiente
 
       setIsLoading(false);
       showStatus('success', 'Pagamento Aprovado', 'Pedido finalizado com sucesso.');
@@ -294,7 +295,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
       (async () => {
         try {
-          await completePurchase(orderId, currentCouponId, currentTotal, token);
+          await completePurchase(orderId, currentCouponId, orderTotal, regionId, token);
         } catch (bgError) { /* Logged in Medusa */ }
       })();
 
@@ -339,6 +340,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   const total = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
   const finalAmount = Math.max(0, total - discount);
+
+  console.log('[CartContext] total:', total, 'discount:', discount, 'finalAmount:', finalAmount);
 
   return (
     <CartContext.Provider

@@ -19,7 +19,7 @@ type LoginUserResponse = {
 
 export async function loginUser(
   email: string,
-  pass: string
+  pass: string,
 ): Promise<Response<LoginUserResponse>> {
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -46,7 +46,7 @@ export async function validateDiscount(
   purchaseAmount: number,
   userId: string,
   token: string,
-  itemsInCart: ItemsInCartType
+  itemsInCart: ItemsInCartType,
 ): Promise<Response<ValidateDiscountResponse>> {
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -56,7 +56,7 @@ export async function validateDiscount(
   if (authError || !authData?.session?.access_token) {
     return [authError?.message || "unauthorized_supabase_session", undefined];
   }
-  
+
   const supabaseAccessToken = authData.session.access_token;
 
   const headers: Record<string, string> = {
@@ -79,14 +79,16 @@ export async function validateDiscount(
         method: "POST",
         headers: headers,
         body: JSON.stringify(requestBody),
-      }
+      },
     );
 
     const data = await response.json();
 
     if (!response.ok) {
       const errorMessage =
-        data.message || data.error || `Erro na Edge Function: ${response.status}`;
+        data.message ||
+        data.error ||
+        `Erro na Edge Function: ${response.status}`;
       return [errorMessage, undefined];
     }
 
@@ -122,7 +124,7 @@ type CreatePurchaseResponse = {
 
 export async function createPurchase(
   purchaseData: PurchaseData,
-  token: string
+  token: string,
 ): Promise<Response<CreatePurchaseResponse>> {
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -174,7 +176,8 @@ export async function completePurchase(
   orderId: string,
   couponId: string,
   total: number,
-  token: string
+  regionId: string,
+  token: string,
 ): Promise<Response<any>> {
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -194,6 +197,7 @@ export async function completePurchase(
   const requestBody = {
     order_id: orderId,
     total: total,
+    region_id: regionId,
     discount_id: couponId,
   };
 
@@ -204,14 +208,16 @@ export async function completePurchase(
         method: "POST",
         headers: headers,
         body: JSON.stringify(requestBody),
-      }
+      },
     );
 
     const data = await response.json();
 
     if (!response.ok) {
       const errorMessage =
-        data.message || data.error || `Erro na Edge Function: ${response.status}`;
+        data.message ||
+        data.error ||
+        `Erro na Edge Function: ${response.status}`;
       return [errorMessage, undefined];
     }
 
