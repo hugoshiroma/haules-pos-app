@@ -17,6 +17,17 @@ type LoginUserResponse = {
   token: string;
 };
 
+type LoginEmployeeResponse = {
+  employee: {
+    id: string;
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+    customer_id: string | null;
+  };
+  token: string;
+};
+
 export async function loginUser(
   email: string,
   pass: string,
@@ -32,6 +43,25 @@ export async function loginUser(
 
   if (error) return [error.message, undefined];
   if (data.error) return [data.error, undefined];
+
+  return [undefined, data];
+}
+
+export async function loginEmployee(
+  email: string,
+  pass: string,
+): Promise<Response<LoginEmployeeResponse>> {
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+  const { data, error } = await supabase.functions.invoke("login-employee", {
+    body: {
+      email,
+      password: pass,
+    },
+  });
+
+  if (error) return [error.message, undefined];
+  if (data.error) return [data.message || data.error, undefined];
 
   return [undefined, data];
 }

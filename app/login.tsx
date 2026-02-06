@@ -1,22 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  ActivityIndicator, 
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Modal,
-  Pressable
-} from 'react-native';
-import { useCart } from '../contexts/CartContext';
-import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Stack, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCart } from '../contexts/CartContext';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -35,12 +34,22 @@ export default function LoginScreen() {
     }
   }, [token]);
 
-  // Tenta biometria automático se tiver credenciais
+  // Tenta biometria automático APENAS se o usuário já habilitou biometria anteriormente
   useEffect(() => {
+    // Só tenta biometria se todas as condições forem atendidas:
+    // 1. Tem credenciais salvas
+    // 2. Não está logado ainda
+    // 3. Biometria é suportada
+    // 4. Usuário não acabou de deslogar (evita loop)
     if (hasSavedCredentials && !token && isBiometricSupported) {
-      handleBiometric();
+      // Aguarda um pouco para evitar que dispare imediatamente após logout
+      const timer = setTimeout(() => {
+        handleBiometric();
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [hasSavedCredentials, isBiometricSupported]);
+  // Removido token das dependências para evitar loop após logout
 
   const handleLogin = async () => {
     if (!email || !password) {
