@@ -5,7 +5,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { initializeAndActivatePinPad } from 'react-native-pagseguro-plugpag';
 import { log } from '../lib/logging';
-import { completePurchase, createPurchase, loginUser, validateDiscount } from "../lib/supabase";
+import { completePurchase, createPurchase, loginEmployee, validateDiscount } from "../lib/supabase";
 
 export type CartItem = {
   id: string; // Este será o variant_id
@@ -75,6 +75,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [couponId, setCouponId] = useState('');
   const [items, setItems] = useState<CartItem[]>([]);
   const [token, setToken] = useState<string | null>(null);
+  const [employeeName, setEmployeeName] = useState<string | null>(null);
+  const [employeeCustomerId, setEmployeeCustomerId] = useState<string | null>(null);
   const [customerScanInfo, setCustomerScanInfo] = useState<CustomerScanInfo | null>(null);
   const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
   const [isBiometricSupported, setIsBiometricSupported] = useState(false);
@@ -153,13 +155,24 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const handleLogin = async (email: string, pass: string, saveSecurely: boolean = true) => {
-    const [error, response] = await loginUser(email, pass);
+    const [error, response] = await loginEmployee(email, pass);
     if (error) {
       showStatus('error', 'Erro no Login', String(error));
       return;
     }
     if (response) {
+      console.log('[handleLogin] response.employee:', JSON.stringify(response.employee));
+      
       setToken(response.token);
+      // Salva nome do funcionário
+      const fullName = `${response.employee?.first_name || ''} ${response.employee?.last_name || ''}`.trim();
+      const employeeDisplayName = fullName || response.employee?.email || 'Funcionário';
+      
+      console.log('[handleLogin] employeeDisplayName:', employeeDisplayName);
+      console.log('[handleLogin] customer_id:', response.employee?.customer_id);
+      setEmployeeName(employeeDisplayName);
+      setEmployeeCustomerId(response.employee?.customer_id || null);
+      
       if (saveSecurely) {
         // Verifica suporte antes de tentar salvar como "biometria ativada"
         const hasHardware = await LocalAuthentication.hasHardwareAsync();
@@ -177,12 +190,14 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   const handleLogout = async (forgetMe: boolean = false) => {
     setToken(null);
+    setEmployeeName(null);
+    setEmployeeCustomerId(null);
     clearCart();
-    if (forgetMe) {
-      await SecureStore.deleteItemAsync(SECURE_AUTH_KEY);
-      await AsyncStorage.removeItem(BIOMETRIC_ENABLED_KEY);
-      setHasSavedCredentials(false);
-    }
+    
+    // Sempre limpa credenciais ao deslogar para não acionar biometria automaticamente
+    await SecureStore.deleteItemAsync(SECURE_AUTH_KEY);
+    await AsyncStorage.removeItem(BIOMETRIC_ENABLED_KEY);
+    setHasSavedCredentials(false);
   };
 
   const biometricLogin = async (): Promise<boolean> => {
@@ -243,13 +258,31 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const handleConfirmOrder = async () => {
     if (items.length === 0 || !token) return;
     setIsLoading(true);
+    
+    console.log('[handleConfirmOrder] employeeName:', employeeName);
+    console.log('[handleConfirmOrder] employeeCustomerId:', employeeCustomerId);
+    
+    // Valida se o funcionário tem customer_id
+    if (!employeeCustomerId) {
+      setIsLoading(false);
+      showStatus(
+        'error',
+        'Erro de Configuração',
+        'Funcionário não possui customer associado. Contate o administrador.'
+      );
+      return;
+    }
+    
     const purchaseData = {
       items: items.map((item) => ({ variant_id: item.id, quantity: item.quantity })),
-      email: customerScanInfo?.email || "funcionariohaules+100@gmail.com",
+      // NÃO enviar email - o Medusa vai pegar do customer_id
       promo_codes: coupon ? [coupon] : undefined,
-      customer_id: customerScanInfo?.userId,
+      customer_id: employeeCustomerId, // Customer do funcionário
       discount_id: couponId || undefined,
       region_id: process.env.EXPO_PUBLIC_REGION_ID!,
+      metadata: {
+        scanned_customer_email: customerScanInfo?.email, // Email do cliente escaneado (se houver)
+      }
     };
     console.log('purchaseData:', purchaseData)
     console.log('coupon:', coupon)
@@ -306,6 +339,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const applyCoupon = (couponId: string, userId: string, customerEmail: string) => {
+    // Salva info do cliente escaneado (usado para validar se o cupom pertence a ele)
     setCustomerScanInfo({ userId, email: customerEmail });
     const mappedItemsInCart = items.map(item => ({ product_id: item.product_id, quantity: item.quantity }));
     validateDiscountCode(couponId, userId, mappedItemsInCart);
