@@ -39,3 +39,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# keep specific android files tracked
+!/android/build.gradle
+!/android/app/build.gradle
+!/android/app/src/main/AndroidManifest.xml
+!/android/app/src/main/java/com/hshiroma1/haulesposapp/MainApplication.kt
+!/android/app/src/main/java/com/hshiroma1/haulesposapp/plugpagclassic/PlugPagClassicModule.kt
+!/android/app/src/main/java/com/hshiroma1/haulesposapp/plugpagclassic/PlugPagClassicPackage.kt

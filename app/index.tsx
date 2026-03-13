@@ -1,27 +1,30 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  FlatList, 
-  TouchableOpacity, 
-  ActivityIndicator, 
-  Image, 
-  ScrollView, 
-  Modal, 
-  TextInput, 
-  Animated, 
-  PanResponder, 
-  Dimensions,
-  Pressable,
-  RefreshControl
-} from 'react-native';
-import { useProducts, Product } from '../hooks/useProducts';
-import { useCart } from '../contexts/CartContext';
-import { useRouter, Stack } from 'expo-router';
-import { getLogContent } from '../lib/logging';
 import { Ionicons } from '@expo/vector-icons';
+import { Stack, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  FlatList,
+  Image,
+  Modal,
+  PanResponder,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../contexts/AuthContext';
+import { useCart } from '../contexts/CartContext';
+import { usePayment } from '../contexts/PaymentContext';
+import { useUI } from '../contexts/UIContext';
+import { Product, useProducts } from '../hooks/useProducts';
+import { getLogContent } from '../lib/logging';
+import { InstallmentTypes, PaymentTypes } from '../lib/plugpagClassic';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.75;
@@ -50,14 +53,22 @@ const ProductCard = ({ item, onAddToCart }: { item: Product, onAddToCart: (item:
 
 export default function PosScreen() {
   const insets = useSafeAreaInsets();
-  const { products, isLoading, isRefreshing, error, refresh } = useProducts();
-  const { 
-    items, addItem, removeItem, total, confirmOrder, isLoading: isCartLoading, 
-    token, activateTerminal, statusConfig, hideStatus, showStatus,
-    clearCart, logout, isValidatingDiscount, discount, finalAmount,
-    biometricLogin, hasSavedCredentials 
-  } = useCart();
   const router = useRouter();
+  
+  // Hooks segregados
+  const { products, isLoading: isProductsLoading, isRefreshing, refresh } = useProducts();
+  const { token, logout, biometricLogin } = useAuth();
+  const { items, addItem, removeItem, total, clearCart, discount, finalAmount, isValidatingDiscount } = useCart();
+  const { statusConfig, hideStatus, showStatus, isLoading: isGlobalLoading } = useUI();
+  const { 
+    activateTerminal, confirmOrder, isProcessingPayment,
+    showPaymentModal, setShowPaymentModal,
+    showInstallmentModal, setShowInstallmentModal,
+    selectedPaymentType, selectPaymentType,
+    selectedInstallmentType, selectInstallmentType,
+    installments, setInstallments,
+    proceedToPayment
+  } = usePayment();
   
   const [showLogs, setShowLogs] = useState(false);
   const [logContent, setLogContent] = useState('');
@@ -67,15 +78,13 @@ export default function PosScreen() {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const displayTotal = discount > 0 ? finalAmount : total;
 
-  // Posições dinâmicas
+  // Animação BottomSheet
   const HIDDEN_POSITION = SHEET_HEIGHT; 
   const CLOSED_POSITION = SHEET_HEIGHT - (MINI_FOOTER_HEIGHT + insets.bottom);
   const OPEN_POSITION = 0;
 
   const panY = useRef(new Animated.Value(HIDDEN_POSITION)).current;
   const [isOpen, setIsOpen] = useState(false);
-
-  // Refs para evitar stale closure no PanResponder
   const isOpenRef = useRef(isOpen);
   const totalItemsRef = useRef(totalItems);
   const closedPosRef = useRef(CLOSED_POSITION);
@@ -88,39 +97,21 @@ export default function PosScreen() {
 
   const toggleSheet = useCallback((open: boolean) => {
     const toValue = open ? OPEN_POSITION : (totalItemsRef.current > 0 ? CLOSED_POSITION : HIDDEN_POSITION);
-    Animated.spring(panY, {
-      toValue,
-      useNativeDriver: true,
-      friction: 8,
-      tension: 40
-    }).start();
+    Animated.spring(panY, { toValue, useNativeDriver: true, friction: 8, tension: 40 }).start();
     setIsOpen(open);
   }, [insets.bottom]);
 
-  // Sincroniza a posição do sheet com a presença de itens (com travas de segurança)
   useEffect(() => {
     if (totalItems === 0 && panY._value !== HIDDEN_POSITION) {
       toggleSheet(false);
     } else if (totalItems > 0 && !isOpen && panY._value === HIDDEN_POSITION) {
-      // Se acabou de adicionar o primeiro item, sobe pro CLOSED_POSITION
-      Animated.spring(panY, {
-        toValue: CLOSED_POSITION,
-        useNativeDriver: true,
-        friction: 8
-      }).start();
+      Animated.spring(panY, { toValue: CLOSED_POSITION, useNativeDriver: true, friction: 8 }).start();
     }
   }, [totalItems, insets.bottom, isOpen]);
 
   const onRefresh = async () => {
     if (isOpen) toggleSheet(false);
     await refresh();
-  };
-
-  const handleBiometricAuth = async () => {
-    const success = await biometricLogin();
-    if (success) {
-      showStatus('success', 'Login Biométrico', 'Bem-vindo de volta!');
-    }
   };
 
   const panResponder = useRef(
@@ -135,13 +126,9 @@ export default function PosScreen() {
         panY.setValue(newY);
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy < -50) {
-          toggleSheet(true);
-        } else if (gestureState.dy > 50) {
-          toggleSheet(false);
-        } else {
-          toggleSheet(isOpenRef.current);
-        }
+        if (gestureState.dy < -50) toggleSheet(true);
+        else if (gestureState.dy > 50) toggleSheet(false);
+        else toggleSheet(isOpenRef.current);
       },
     })
   ).current;
@@ -149,7 +136,6 @@ export default function PosScreen() {
   const handleClearCart = () => {
     clearCart();
     setShowClearConfirm(false);
-    // Removido o showStatus de sucesso aqui conforme solicitado
   };
 
   const handleLogout = async (forgetMe: boolean) => {
@@ -172,8 +158,6 @@ export default function PosScreen() {
     extrapolate: 'clamp',
   });
 
-  // Se não estiver logado, não renderiza nada (o _layout mandará pro login)
-  // Isso evita o erro de "Cannot update a component while rendering a different component"
   if (!token) return null;
 
   if (showLogs) {
@@ -204,20 +188,21 @@ export default function PosScreen() {
               >
                 <Ionicons name="scan" size={26} color={totalItems > 0 ? "#2196F3" : "#ccc"} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={activateTerminal} style={{ marginHorizontal: 10 }}><Ionicons name="card" size={26} color="#2196F3" /></TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => setShowLogoutConfirm(true)} 
-                style={{ marginHorizontal: 10 }}
-              >
+              <TouchableOpacity onPress={activateTerminal} style={{ marginHorizontal: 10 }}>
+                <Ionicons name="card" size={26} color="#2196F3" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowLogoutConfirm(true)} style={{ marginHorizontal: 10 }}>
                 <Ionicons name="log-out-outline" size={26} color="#f44336" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={async () => { setLogContent(await getLogContent()); setShowLogs(true); }} style={{ marginLeft: 10 }}><Ionicons name="list" size={26} color="#2196F3" /></TouchableOpacity>
+              <TouchableOpacity onPress={async () => { setLogContent(await getLogContent()); setShowLogs(true); }} style={{ marginLeft: 10 }}>
+                <Ionicons name="list" size={26} color="#2196F3" />
+              </TouchableOpacity>
             </View>
           )
         }} 
       />
       
-      {isLoading ? (
+      {isProductsLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#2196F3" />
           <Text style={{ marginTop: 15, color: '#666', fontWeight: 'bold' }}>Carregando produtos...</Text>
@@ -233,19 +218,13 @@ export default function PosScreen() {
         />
       )}
 
-      {/* Backdrop do Carrinho */}
-      <Animated.View 
-        pointerEvents={isOpen ? 'auto' : 'none'}
-        style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: backdropOpacity }]}
-      >
+      {/* Backdrop */}
+      <Animated.View pointerEvents={isOpen ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: backdropOpacity }]}>
         <Pressable style={{ flex: 1 }} onPress={() => toggleSheet(false)} />
       </Animated.View>
 
-      {/* Bottom Sheet */}
-      <Animated.View 
-        style={[styles.bottomSheet, { height: SHEET_HEIGHT, transform: [{ translateY: panY }] }]}
-        {...panResponder.panHandlers}
-      >
+      {/* Bottom Sheet Carrinho */}
+      <Animated.View style={[styles.bottomSheet, { height: SHEET_HEIGHT, transform: [{ translateY: panY }] }]} {...panResponder.panHandlers}>
         <TouchableOpacity activeOpacity={1} onPress={() => toggleSheet(!isOpen)} style={[styles.sheetHandleArea, { paddingBottom: isOpen ? 12 : 12 + insets.bottom }]}>
           <View style={styles.handleBar} />
           <View style={styles.miniFooter}>
@@ -302,14 +281,13 @@ export default function PosScreen() {
         </View>
       </Animated.View>
 
-      {/* Modal de Confirmação para Limpar Carrinho */}
+      {/* Modais (Limpar Carrinho, Logout) */}
       <Modal visible={showClearConfirm} animationType="fade" transparent={true}>
         <View style={styles.modalOverlayCenter}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowClearConfirm(false)} />
           <View style={styles.statusBox}>
             <Ionicons name="trash" size={60} color="#ff5252" />
             <Text style={styles.statusText}>Limpar Carrinho?</Text>
-            <Text style={styles.statusSubText}>Deseja mesmo remover todos os itens da lista?</Text>
             <TouchableOpacity style={[styles.confirmButtonLarge, {width: '100%', marginTop: 20, backgroundColor: '#ff5252'}]} onPress={handleClearCart}>
               <Text style={styles.confirmButtonText}>Sim, Limpar Tudo</Text>
             </TouchableOpacity>
@@ -320,23 +298,18 @@ export default function PosScreen() {
         </View>
       </Modal>
 
-      {/* Modal de Confirmação para Sair (Logout) */}
       <Modal visible={showLogoutConfirm} animationType="fade" transparent={true}>
         <View style={styles.modalOverlayCenter}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowLogoutConfirm(false)} />
           <View style={styles.statusBox}>
             <Ionicons name="log-out" size={60} color="#f44336" />
             <Text style={styles.statusText}>Sair do Sistema?</Text>
-            <Text style={styles.statusSubText}>Você precisará logar novamente para realizar vendas.</Text>
-            
             <TouchableOpacity style={[styles.confirmButtonLarge, {width: '100%', marginTop: 20, backgroundColor: '#f44336'}]} onPress={() => handleLogout(false)}>
-              <Text style={styles.confirmButtonText}>Sim, Sair agora</Text>
+              <Text style={styles.confirmButtonText}>Sair agora</Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={[styles.confirmButtonLarge, {width: '100%', marginTop: 10, backgroundColor: '#666'}]} onPress={() => handleLogout(true)}>
               <Text style={styles.confirmButtonText}>Sair e Limpar Biometria</Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={{marginTop: 15}} onPress={() => setShowLogoutConfirm(false)}>
               <Text style={{color: '#2196F3', fontWeight: 'bold'}}>Voltar</Text>
             </TouchableOpacity>
@@ -344,20 +317,78 @@ export default function PosScreen() {
         </View>
       </Modal>
 
-      {/* Overlay de Loading/Status Global */}
-      {(isCartLoading || isValidatingDiscount || statusConfig.visible) && (
+      {/* Modais de Pagamento (Controlados pelo PaymentContext) */}
+      <Modal visible={showPaymentModal} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlayCenter}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPaymentModal(false)} />
+          <View style={styles.statusBox}>
+            <Ionicons name="card" size={60} color="#2196F3" />
+            <Text style={styles.statusText}>Forma de Pagamento</Text>
+            <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: '#4CAF50' }]} onPress={() => selectPaymentType(PaymentTypes.CREDIT)}>
+              <Text style={styles.confirmButtonText}>💳 Crédito</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 10, backgroundColor: '#2196F3' }]} onPress={() => selectPaymentType(PaymentTypes.DEBIT)}>
+              <Text style={styles.confirmButtonText}>💰 Débito</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ marginTop: 15 }} onPress={() => setShowPaymentModal(false)}>
+              <Text style={{ color: '#666', fontWeight: 'bold' }}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showInstallmentModal} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlayCenter}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowInstallmentModal(false)} />
+          <View style={styles.statusBox}>
+            <Ionicons name="calculator" size={60} color="#FF9800" />
+            <Text style={styles.statusText}>Parcelamento</Text>
+            {selectedPaymentType === PaymentTypes.CREDIT ? (
+              <>
+                <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: '#4CAF50' }]} onPress={() => selectInstallmentType(InstallmentTypes.NO_INSTALLMENT)}>
+                  <Text style={styles.confirmButtonText}>À Vista</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 10, backgroundColor: '#FF9800' }]} onPress={() => selectInstallmentType(InstallmentTypes.BUYER_INSTALLMENT)}>
+                  <Text style={styles.confirmButtonText}>Parcelado</Text>
+                </TouchableOpacity>
+                {selectedInstallmentType === InstallmentTypes.BUYER_INSTALLMENT && (
+                  <View style={{ width: '100%', marginTop: 20 }}>
+                     <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 15 }}>
+                      <TouchableOpacity style={{ backgroundColor: '#ddd', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }} onPress={() => setInstallments(Math.max(2, installments - 1))}>
+                        <Text style={{ fontSize: 24, fontWeight: 'bold' }}>-</Text>
+                      </TouchableOpacity>
+                      <Text style={{ fontSize: 32, fontWeight: 'bold', minWidth: 50, textAlign: 'center' }}>{installments}x</Text>
+                      <TouchableOpacity style={{ backgroundColor: '#ddd', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }} onPress={() => setInstallments(Math.min(18, installments + 1))}>
+                        <Text style={{ fontSize: 24, fontWeight: 'bold' }}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: '#4CAF50' }]} onPress={proceedToPayment}>
+                      <Text style={styles.confirmButtonText}>Confirmar {installments}x</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            ) : (
+              <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: '#4CAF50' }]} onPress={() => selectInstallmentType(InstallmentTypes.NO_INSTALLMENT)}>
+                <Text style={styles.confirmButtonText}>Confirmar Pagamento</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={{ marginTop: 15 }} onPress={() => setShowInstallmentModal(false)}>
+              <Text style={{ color: '#666', fontWeight: 'bold' }}>Voltar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Overlay Global de Status/Loading (UI Context) */}
+      {(isGlobalLoading || isProcessingPayment || isValidatingDiscount || statusConfig.visible) && (
         <View style={styles.globalLoadingOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={statusConfig.visible ? hideStatus : undefined} />
           <View style={[styles.statusBox, { marginBottom: insets.bottom + 20 }]}>
-            {(isCartLoading || isValidatingDiscount) ? (
+            {(isGlobalLoading || isProcessingPayment || isValidatingDiscount) ? (
               <>
                 <ActivityIndicator size="large" color="#4CAF50" />
-                <Text style={styles.statusText}>
-                  {isValidatingDiscount ? 'Validando Cupom...' : 'Processando Pagamento...'}
-                </Text>
-                <Text style={styles.statusSubText}>
-                  {isValidatingDiscount ? 'Aguarde um momento' : 'Aguarde a resposta da maquininha'}
-                </Text>
+                <Text style={styles.statusText}>{isValidatingDiscount ? 'Validando Cupom...' : 'Processando...'}</Text>
               </>
             ) : (
               <>
@@ -415,11 +446,6 @@ const styles = StyleSheet.create({
   confirmButtonLarge: { backgroundColor: '#4CAF50', paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
   confirmButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  loginCard: { backgroundColor: '#fff', borderRadius: 20, padding: 25, width: '85%' },
-  loginTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, marginBottom: 15, color: '#000' },
-  passwordContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingRight: 10 },
-  eyeIcon: { padding: 5 },
   globalLoadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 9999 },
   statusBox: { backgroundColor: '#fff', padding: 30, borderRadius: 24, alignItems: 'center', width: '85%', elevation: 10 },
   statusText: { fontSize: 18, fontWeight: 'bold', marginTop: 15, color: '#333' },

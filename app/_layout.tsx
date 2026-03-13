@@ -8,7 +8,10 @@ import { View, ActivityIndicator } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import { CartProvider, useCart } from '../contexts/CartContext';
+import { UIProvider } from '../contexts/UIContext';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { CartProvider } from '../contexts/CartContext';
+import { PaymentProvider } from '../contexts/PaymentContext';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -44,21 +47,28 @@ export default function RootLayout() {
   }
 
   return (
-    <CartProvider>
-      <RootLayoutNav />
-    </CartProvider>
+    <UIProvider>
+      <AuthProvider>
+        <CartProvider>
+          <PaymentProvider>
+            <RootLayoutNav />
+          </PaymentProvider>
+        </CartProvider>
+      </AuthProvider>
+    </UIProvider>
   );
 }
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  const { token, isInitialLoading } = useCart();
+  const { token, isInitialLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     if (isInitialLoading) return;
 
+    // TODO: Ajustar lógica de segmentos se necessário
     const inAuthGroup = segments[0] === 'login';
 
     if (!token && !inAuthGroup) {

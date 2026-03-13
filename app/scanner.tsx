@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Text, View, StyleSheet, Button, ActivityIndicator, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { ActivityIndicator, Button, Dimensions, StyleSheet, Text, View } from 'react-native';
 import { useCart } from '../contexts/CartContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ScannerScreen() {
   const router = useRouter();
-  const { applyCoupon, isValidatingDiscount } = useCart();
+  const { applyCoupon, isValidatingDiscount, setCustomerScanInfo } = useCart();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
@@ -30,12 +30,9 @@ export default function ScannerScreen() {
     );
   }
 
-  const handleBarCodeScanned = (result: any) => {
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
     if (scanned || isValidatingDiscount) return;
     
-    const data = result.data;
-    if (!data) return;
-
     // Formato esperado: userCouponId|userId|email
     const parts = data.split('|');
     
@@ -45,14 +42,18 @@ export default function ScannerScreen() {
       const userId = parts[1].trim();
       
       // GAMBIARRA TEMPORÁRIA: O scanner está lendo "+" como " " (espaço).
-      // Forçamos a volta do "+" para não quebrar a validação no Medusa/Supabase.
       let email = parts[2] ? parts[2].trim() : '';
       if (email.includes(' ')) {
         email = email.replace(/ /g, '+');
       }
 
-      // Aplica o cupom e volta imediatamente pra tela principal
-      applyCoupon(userCouponId, userId, email);
+      // 1. Salva info do cliente escaneado para o PaymentContext usar depois
+      setCustomerScanInfo({ userId, email });
+
+      // 2. Aplica o cupom
+      applyCoupon(userCouponId, userId);
+      
+      // 3. Volta pra tela de vendas
       router.back();
     }
   };

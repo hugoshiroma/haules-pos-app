@@ -32,38 +32,70 @@ export async function loginUser(
   email: string,
   pass: string,
 ): Promise<Response<LoginUserResponse>> {
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/login-user`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${supabaseAnonKey}`,
+        apikey: supabaseAnonKey,
+      },
+      body: JSON.stringify({
+        email,
+        password: pass,
+      }),
+    });
 
-  const { data, error } = await supabase.functions.invoke("login-user", {
-    body: {
-      email,
-      password: pass,
-    },
-  });
+    const data = await response.json();
 
-  if (error) return [error.message, undefined];
-  if (data.error) return [data.error, undefined];
+    if (!response.ok) {
+      const errorMessage =
+        data.message || data.error || `Erro na Edge Function: ${response.status}`;
+      return [errorMessage, undefined];
+    }
 
-  return [undefined, data];
+    return [undefined, data];
+  } catch (error: any) {
+    return [
+      error.message || "Erro desconhecido ao chamar Edge Function",
+      undefined,
+    ];
+  }
 }
 
 export async function loginEmployee(
   email: string,
   pass: string,
 ): Promise<Response<LoginEmployeeResponse>> {
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/login-employee`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${supabaseAnonKey}`,
+        apikey: supabaseAnonKey,
+      },
+      body: JSON.stringify({
+        email,
+        password: pass,
+      }),
+    });
 
-  const { data, error } = await supabase.functions.invoke("login-employee", {
-    body: {
-      email,
-      password: pass,
-    },
-  });
+    const data = await response.json();
 
-  if (error) return [error.message, undefined];
-  if (data.error) return [data.message || data.error, undefined];
+    if (!response.ok) {
+      const errorMessage =
+        data.message || data.error || `Erro na Edge Function: ${response.status}`;
+      return [errorMessage, undefined];
+    }
 
-  return [undefined, data];
+    return [undefined, data];
+  } catch (error: any) {
+    return [
+      error.message || "Erro desconhecido ao chamar Edge Function",
+      undefined,
+    ];
+  }
 }
 
 type ItemsInCartType = {
