@@ -1,0 +1,6 @@
+{
+  "name": "plugpag-classic",
+  "android": {
+    "package": "com.hshiroma1.haulesposapp.plugpagclassic.PlugPagClassicPackage"
+  }
+}

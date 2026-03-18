@@ -50,7 +50,9 @@ export async function loginUser(
 
     if (!response.ok) {
       const errorMessage =
-        data.message || data.error || `Erro na Edge Function: ${response.status}`;
+        data.message ||
+        data.error ||
+        `Erro na Edge Function: ${response.status}`;
       return [errorMessage, undefined];
     }
 
@@ -85,7 +87,9 @@ export async function loginEmployee(
 
     if (!response.ok) {
       const errorMessage =
-        data.message || data.error || `Erro na Edge Function: ${response.status}`;
+        data.message ||
+        data.error ||
+        `Erro na Edge Function: ${response.status}`;
       return [errorMessage, undefined];
     }
 
@@ -173,7 +177,7 @@ type PurchaseData = {
     quantity: number;
   }[];
   region_id: string;
-  email: string;
+  email?: string;
   promo_codes?: string[];
   customer_id?: string;
 };
@@ -181,6 +185,7 @@ type PurchaseData = {
 type CreatePurchaseResponse = {
   order: {
     id: string;
+    total: number;
   };
 };
 

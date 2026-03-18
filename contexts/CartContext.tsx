@@ -40,6 +40,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [customerScanInfo, setCustomerScanInfo] = useState<{ userId: string; email: string } | null>(null);
 
+  // Limpa o carrinho se o usuário deslogar
+  React.useEffect(() => {
+    if (!token) {
+      clearCart();
+    }
+  }, [token]);
+
   const addItem = (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
     setItems((prev) => {
       const exists = prev.find((i) => i.id === item.id);

@@ -1,11 +1,10 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, ReactNode, useContext, useState } from 'react';
+import { initializeAndActivatePinPad } from 'react-native-pagseguro-plugpag';
+import { doPaymentClassic, InstallmentTypes, PaymentTypes, PlugPagClassicPaymentInput } from '../lib/plugpagClassic';
+import { completePurchase, createPurchase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useCart } from './CartContext';
 import { useUI } from './UIContext';
-import { initializeAndActivatePinPad } from 'react-native-pagseguro-plugpag';
-import { doPaymentClassic, PaymentTypes, InstallmentTypes, PlugPagClassicPaymentInput } from '../lib/plugpagClassic';
-import { createPurchase, completePurchase } from '../lib/supabase';
-import { Alert } from 'react-native';
 
 export type PaymentType = typeof PaymentTypes[keyof typeof PaymentTypes];
 export type InstallmentType = typeof InstallmentTypes[keyof typeof InstallmentTypes];
@@ -90,9 +89,9 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     setSelectedInstallmentType(type);
     if (type === InstallmentTypes.NO_INSTALLMENT) {
       setInstallments(1);
-      // Se quiser pular direto:
       setShowInstallmentModal(false);
-      executePaymentFlow();
+      // Passamos os valores atuais diretamente para evitar o lag do state do React
+      executePaymentFlow(selectedPaymentType, type, 1);
     } else if (installments < 2) {
       setInstallments(2);
     }
@@ -100,12 +99,28 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
 
   const proceedToPayment = async () => {
     setShowInstallmentModal(false);
-    await executePaymentFlow();
+    await executePaymentFlow(selectedPaymentType, selectedInstallmentType, installments);
   };
 
-  const executePaymentFlow = async () => {
-    if (!selectedPaymentType || !selectedInstallmentType || !token || !employeeCustomerId) {
-      showStatus('error', 'Dados Incompletos', 'Verifique login e forma de pagamento.');
+  const executePaymentFlow = async (
+    overrideType?: PaymentType | null, 
+    overrideInstallment?: InstallmentType | null,
+    overrideInstallments?: number
+  ) => {
+    const pType = overrideType ?? selectedPaymentType;
+    const iType = overrideInstallment ?? selectedInstallmentType;
+    const inst = overrideInstallments ?? installments;
+
+    console.log('Iniciando fluxo de pagamento com:', {
+      pType,
+      iType,
+      inst,
+      token: token ? 'PRESENTE' : 'AUSENTE',
+      employeeCustomerId,
+    });
+
+    if (!pType || !iType || !token || !employeeCustomerId) {
+      showStatus('error', 'Dados Incompletos', `Verifique: Pagamento(${pType}), Parcelamento(${iType}), Auth(${!!token}), CustomerID(${employeeCustomerId})`);
       return;
     }
 
@@ -117,49 +132,57 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       const purchaseData = {
         items: items.map((item) => ({ variant_id: item.id, quantity: item.quantity })),
         promo_codes: coupon ? [coupon] : undefined,
-        customer_id: employeeCustomerId,
+        customer_id: customerScanInfo?.userId || employeeCustomerId,
         discount_id: couponId || undefined,
         region_id: process.env.EXPO_PUBLIC_REGION_ID!,
         metadata: {
           scanned_customer_email: customerScanInfo?.email,
-        }
+        },
+        email: customerScanInfo?.email || undefined,
       };
 
       const [medusaError, medusaData] = await createPurchase(purchaseData, token);
       
       if (medusaError) throw new Error(`Erro ao criar pedido: ${JSON.stringify(medusaError)}`);
 
-      const orderId = medusaData.order.id;
-      const orderTotal = medusaData.order.total; // Total vindo do backend (mais seguro)
+      const orderId = medusaData?.order.id;
+      const orderTotal = medusaData?.order.total;
 
-      // 2. Cobra na Maquininha (Moderninha Plus 2 via Bluetooth)
-      const amountInCents = Math.round(finalAmount * 100); // Usa o total local calculado
+      // 2. Cobra na Maquininha (MOCKADO TEMPORARIAMENTE)
+      const amountInCents = Math.round(finalAmount * 100); 
       
+      console.log('--- MOCK PAYMENT ACTIVE ---');
+      console.log('Simulando cobrança de:', amountInCents, 'centavos');
+      
+      // /* 
       const paymentParams: PlugPagClassicPaymentInput = {
         amount: amountInCents,
-        type: selectedPaymentType,
-        installments: selectedPaymentType === PaymentTypes.DEBIT ? 1 : installments,
-        installmentType: selectedInstallmentType,
+        type: pType,
+        installments: pType === PaymentTypes.DEBIT ? 1 : inst,
+        installmentType: iType,
         printReceipt: true,
-        userReference: `PEDIDO_${orderId.substring(0, 8)}`,
+        userReference: `PEDIDO_${orderId?.substring(0, 8)}`,
       };
 
       const paymentResult = await doPaymentClassic(paymentParams);
 
       if (paymentResult.result !== 0) {
-        throw new Error(paymentResult.errorMessage || 'Pagamento não autorizado.');
+        throw new Error(paymentResult.message || 'Pagamento não autorizado.');
       }
+      // */
+
+      // const paymentResult = { result: 0 }; // Simula sucesso
 
       // 3. Completa Pedido no Medusa (Se sucesso na máquina)
-      await completePurchase(orderId, couponId, orderTotal, process.env.EXPO_PUBLIC_REGION_ID!, token);
+      await completePurchase(orderId as string, couponId, orderTotal as number, process.env.EXPO_PUBLIC_REGION_ID!, token);
 
       showStatus('success', 'Venda Concluída!', `Pedido ${orderId} registrado.`);
-      clearCart();
       
     } catch (error: any) {
       console.error(error);
       showStatus('error', 'Falha na Transação', error.message);
     } finally {
+      clearCart(); // Limpa sempre, independente de erro ou sucesso
       setIsLoading(false);
       setIsProcessingPayment(false);
     }

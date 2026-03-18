@@ -1,0 +1,28 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+  namespace "com.hshiroma1.haulesposapp.plugpagclassic"
+  compileSdk 34
+
+  defaultConfig {
+    minSdkVersion 23
+    targetSdkVersion 34
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+    }
+  }
+
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  implementation "com.facebook.react:react-android"
+  implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.0"
+  implementation 'br.com.uol.pagseguro:plugpag:3.0.0'
+}

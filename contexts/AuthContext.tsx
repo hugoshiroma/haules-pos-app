@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { loginEmployee } from '../lib/supabase';
 import { useUI } from './UIContext';
 
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     const [error, response] = await loginEmployee(email, pass);
     setIsLoading(false);
-
+    console.log('response:',response )
     if (error) {
       showStatus('error', 'Erro no Login', String(error));
       return null;

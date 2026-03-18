@@ -1,10 +1,4 @@
-import { NativeModules } from "react-native";
-
-/**
- * A biblioteca instalada (react-native-pagseguro-plugpag) 
- * registra o módulo nativo como 'PagseguroPlugpag'.
- */
-const { PagseguroPlugpag } = NativeModules;
+import * as PlugPagModule from "../modules/plugpag-classic";
 
 export const PaymentTypes = {
   CREDIT: 1,
@@ -41,42 +35,34 @@ export type PlugPagClassicPaymentInput = {
  * ATENÇÃO: A maquininha PRECISA estar pareada no Bluetooth do Android.
  */
 export async function doPaymentClassic(data: PlugPagClassicPaymentInput) {
-  if (!PagseguroPlugpag) {
-    throw new Error(
-      "Módulo nativo 'PagseguroPlugpag' não encontrado. " +
-      "Rebuild o app usando 'npx expo run:android' para ativar as dependências nativas."
-    );
-  }
-
   // O SDK da PagSeguro exige valores INTEIROS (centavos)
   const amountInCents = Math.round(data.amount);
 
-  const paymentParams = {
+  const paymentParams: PlugPagModule.PaymentInput = {
     amount: amountInCents,
     type: data.type,
     installmentType: data.installmentType,
     installments: data.installments,
-    printReceipt: data.printReceipt ?? true, // Padrão: Imprimir via app/maquina se suportado
     userReference: data.userReference || "haules-pos",
     // deviceName opcional: se passado, o SDK tenta conectar especificamente nele
     ...(data.deviceName ? { deviceName: data.deviceName } : {}),
   };
 
-  console.log("[PlugPagClassic] Disparando cobrança (Raw Data):", JSON.stringify(paymentParams));
+  console.log("[PlugPagClassic] Disparando cobrança (Expo Module):", JSON.stringify(paymentParams));
 
   try {
     /**
-     * O SDK nativo do PagSeguro via Wrapper espera um JSON stringificado
-     * conforme visto no arquivo index.tsx da biblioteca.
+     * Agora chamamos diretamente o método do nosso Expo Module local.
+     * O novo módulo já recebe o objeto direto (ReadableMap no Kotlin), 
+     * não precisa mais de JSON.stringify.
      */
-    const dataFormatted = JSON.stringify(paymentParams);
-    const result = await PagseguroPlugpag.doPayment(dataFormatted);
+    const result = await PlugPagModule.doPaymentClassic(paymentParams);
     
-    // Padronização da resposta de erro do SDK
+    // Padronização da resposta de erro do SDK (usando 'message' que vem do nativo)
     if (result && result.result !== 0) {
       return {
         ...result,
-        errorMessage: result.message || result.errorMessage || "Transação cancelada ou falhou.",
+        message: result.message || "Transação cancelada ou falhou.",
       };
     }
     
