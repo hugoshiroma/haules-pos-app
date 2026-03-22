@@ -1,0 +1,7 @@
+{
+  "name": "plugpag-classic",
+  "version": "1.0.0",
+  "description": "Native module for PagSeguro PlugPag Bluetooth SDK",
+  "main": "index.ts",
+  "private": true
+}

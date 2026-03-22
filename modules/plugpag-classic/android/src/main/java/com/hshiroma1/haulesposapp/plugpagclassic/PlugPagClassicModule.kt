@@ -27,15 +27,49 @@ class PlugPagClassicModule(private val reactContext: ReactApplicationContext) : 
 
     override fun getName(): String = NAME
 
+    private fun buildPlugPag(): PlugPag {
+        val appName = reactContext.applicationInfo.loadLabel(reactContext.packageManager).toString()
+        val appVersion = reactContext.packageManager.getPackageInfo(reactContext.packageName, 0).versionName ?: "1.0.0"
+        return PlugPag(reactContext, PlugPagAppIdentification(appName, appVersion))
+    }
+
+    @ReactMethod
+    fun activateTerminal(activationCode: String, deviceName: String?, promise: Promise) {
+        val executor = Executors.newSingleThreadExecutor()
+        executor.submit(Callable {
+            try {
+                val plugPag = buildPlugPag()
+
+                val resolvedDeviceName = deviceName ?: findPairedDeviceName()
+                if (resolvedDeviceName.isNullOrBlank()) {
+                    promise.reject("NO_DEVICE", "Nenhuma maquininha pareada encontrada. Pareie via Bluetooth e tente novamente.")
+                    return@Callable null
+                }
+
+                // No BT SDK, "ativar" é estabelecer a conexão. initializeAndActivatePinpad
+                // só existe no PlugPagServiceWrapper (on-terminal), não no BT SDK.
+                val initResult = plugPag.initBTConnection(PlugPagDevice(resolvedDeviceName))
+                val map = Arguments.createMap()
+                map.putInt("result", initResult.result)
+                map.putString("errorCode", initResult.errorCode)
+                map.putString("message", initResult.message)
+                promise.resolve(map)
+            } catch (error: Throwable) {
+                Log.e(NAME, "activateTerminal error", error)
+                promise.reject("ACTIVATE_ERROR", error)
+            } finally {
+                executor.shutdown()
+            }
+            null
+        })
+    }
+
     @ReactMethod
     fun doPaymentClassic(data: com.facebook.react.bridge.ReadableMap, promise: Promise) {
         val executor = Executors.newSingleThreadExecutor()
         executor.submit(Callable {
             try {
-                val appName = reactContext.applicationInfo.loadLabel(reactContext.packageManager).toString()
-                val appVersion = reactContext.packageManager.getPackageInfo(reactContext.packageName, 0).versionName ?: "1.0.0"
-                val appIdentification = PlugPagAppIdentification(appName, appVersion)
-                val plugPag = PlugPag(reactContext, appIdentification)
+                val plugPag = buildPlugPag()
 
                 val deviceName = if (data.hasKey("deviceName")) data.getString("deviceName") else null
                 val resolvedDeviceName = deviceName ?: findPairedDeviceName()

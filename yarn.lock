@@ -4447,11 +4447,6 @@ react-native-is-edge-to-edge@^1.1.6, react-native-is-edge-to-edge@^1.2.1:
   resolved "https://registry.yarnpkg.com/react-native-is-edge-to-edge/-/react-native-is-edge-to-edge-1.2.1.tgz#64e10851abd9d176cbf2b40562f751622bde3358"
   integrity sha512-FLbPWl/MyYQWz+KwqOZsSyj2JmLKglHatd3xLZWskXOpRaio4LfEDEz8E/A6uD8QoTHW6Aobw1jbEwK7KMgR7Q==
 
-react-native-pagseguro-plugpag@^0.1.1:
-  version "0.1.1"
-  resolved "https://registry.yarnpkg.com/react-native-pagseguro-plugpag/-/react-native-pagseguro-plugpag-0.1.1.tgz#41292c7076fb608ed98b9078a73391e68c959fc0"
-  integrity sha512-OJdPVOEu4M6jXen3EDqawzuxwpZ8qnGW+T6fy1kFB+iJMKIegdbMG9rFMiPua7yziO75kmGjvxgq1dzPkftgaQ==
-
 react-native-reanimated@~4.1.1:
   version "4.1.6"
   resolved "https://registry.yarnpkg.com/react-native-reanimated/-/react-native-reanimated-4.1.6.tgz#9d3d06416eaf48ab25594611185f66b34e404291"

@@ -1,6 +1,5 @@
 import React, { createContext, ReactNode, useContext, useState } from 'react';
-import { initializeAndActivatePinPad } from 'react-native-pagseguro-plugpag';
-import { doPaymentClassic, InstallmentTypes, PaymentTypes, PlugPagClassicPaymentInput } from '../lib/plugpagClassic';
+import { activateTerminal as activateTerminalNative, doPaymentClassic, InstallmentTypes, PaymentTypes, PlugPagClassicPaymentInput } from '../lib/plugpagClassic';
 import { completePurchase, createPurchase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useCart } from './CartContext';
@@ -43,16 +42,9 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
   const activateTerminal = async () => {
     setIsLoading(true);
     try {
-      if (typeof initializeAndActivatePinPad !== 'function') throw new Error('SDK não encontrada!');
-      
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT SDK')), 5000));
-      const activationPromise = initializeAndActivatePinPad('403938');
-      
-      const data: any = await Promise.race([activationPromise, timeoutPromise]);
-      
-      if (data.result !== 0) throw new Error(data.errorMessage);
-      
-      showStatus('success', 'Terminal Ativado', `Terminal ${data.terminalId} pronto.`);
+      const data = await activateTerminalNative('403938');
+      if (data.result !== 0) throw new Error(data.message || data.errorCode || 'Falha na ativação do terminal.');
+      showStatus('success', 'Terminal Ativado', 'Maquininha pronta para uso.');
     } catch (error: any) {
       showStatus('error', 'Erro na Ativação', error.message);
     } finally {

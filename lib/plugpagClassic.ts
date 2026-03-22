@@ -1,5 +1,9 @@
 import * as PlugPagModule from "../modules/plugpag-classic";
 
+export async function activateTerminal(activationCode: string, deviceName?: string) {
+  return await PlugPagModule.activateTerminalNative(activationCode, deviceName);
+}
+
 export const PaymentTypes = {
   CREDIT: 1,
   DEBIT: 2,

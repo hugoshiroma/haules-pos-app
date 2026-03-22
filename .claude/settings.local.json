@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(node -e \":*)",
+      "Bash(node --input-type=commonjs:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find /c/Projetos/haules-pos-app -type f -name *.gradle -o -name *Payment* -o -name *pagseguro* -o -name *maquininha*)",
+      "WebSearch",
+      "Bash(find /c/Projetos/haules-pos-app/modules/plugpag-classic -name *.ts -o -name *.tsx -o -name *.js -o -name *.json)",
+      "WebFetch(domain:github.com)",
+      "Bash(find /c/Projetos/haules-pos-app/node_modules/react-native-pagseguro-plugpag -name *.ts -o -name *.tsx -o -name *.d.ts -o -name *.js)",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx\\)$\")",
+      "WebFetch(domain:developer.pagbank.com.br)",
+      "WebFetch(domain:faq.pagbank.com.br)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:npm.io)",
+      "Bash(npx expo:*)",
+      "Bash(./gradlew assembleDebug --stacktrace)",
+      "Bash(node node_modules/expo-modules-autolinking/build/cli.js react-native-config --json --platform android)",
+      "Bash(node node_modules/expo-modules-autolinking/bin/expo-modules-autolinking.js react-native-config --json --platform android)",
+      "Bash(./gradlew assembleDebug)",
+      "Bash(./gradlew :plugpag-classic:compileDebugKotlin --info)",
+      "Bash(./gradlew :plugpag-classic:compileDebugKotlin)",
+      "Bash(jar tf:*)",
+      "Bash(grep \"\\\\.class$\")",
+      "Bash(grep .class$)",
+      "Bash(find ~/.gradle/caches -name btserial-1.1.0*.jar)"
+    ]
+  }
+}

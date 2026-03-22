@@ -29,10 +29,25 @@ export type PaymentResult = {
   availableBalance?: string;
 };
 
-export async function doPaymentClassic(data: PaymentInput): Promise<PaymentResult> {
+export type ActivationResult = {
+  result: number;
+  errorCode?: string;
+  message?: string;
+};
+
+function assertModule() {
   if (!PlugPagClassic) {
     throw new Error("Módulo nativo 'PlugPagClassic' não encontrado. Rebuild o app.");
   }
+}
+
+export async function activateTerminalNative(activationCode: string, deviceName?: string): Promise<ActivationResult> {
+  assertModule();
+  return await PlugPagClassic.activateTerminal(activationCode, deviceName ?? null);
+}
+
+export async function doPaymentClassic(data: PaymentInput): Promise<PaymentResult> {
+  assertModule();
   return await PlugPagClassic.doPaymentClassic(data);
 }
 

@@ -1,6 +1,15 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
+repositories {
+  maven {
+    url 'https://github.com/pagseguromaster/plugpag/raw/master/3.x/android'
+    content {
+      includeGroup 'br.com.uol.pagseguro'
+    }
+  }
+}
+
 android {
   namespace "com.hshiroma1.haulesposapp.plugpagclassic"
   compileSdk 34
