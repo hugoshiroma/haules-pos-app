@@ -25,7 +25,10 @@
       "Bash(jar tf:*)",
       "Bash(grep \"\\\\.class$\")",
       "Bash(grep .class$)",
-      "Bash(find ~/.gradle/caches -name btserial-1.1.0*.jar)"
+      "Bash(find ~/.gradle/caches -name btserial-1.1.0*.jar)",
+      "Bash(./gradlew assembleDebug -PbundleInDebug=true)",
+      "Bash(./gradlew clean:*)",
+      "Bash(./gradlew assembleDebug -PbundleInDebug=true --rerun-tasks)"
     ]
   }
 }

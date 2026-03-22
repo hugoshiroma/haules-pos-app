@@ -23,6 +23,8 @@ type PaymentContextType = {
   installments: number;
   setInstallments: (value: number) => void;
   isProcessingPayment: boolean;
+  isDemoMode: boolean;
+  toggleDemoMode: (enable: boolean) => void;
 };
 
 const PaymentContext = createContext<PaymentContextType | undefined>(undefined);
@@ -38,6 +40,9 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
   const [selectedInstallmentType, setSelectedInstallmentType] = useState<InstallmentType | null>(null);
   const [installments, setInstallments] = useState(1);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  const toggleDemoMode = (enable: boolean) => setIsDemoMode(enable);
 
   const activateTerminal = async () => {
     setIsLoading(true);
@@ -140,30 +145,27 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       const orderId = medusaData?.order.id;
       const orderTotal = medusaData?.order.total;
 
-      // 2. Cobra na Maquininha (MOCKADO TEMPORARIAMENTE)
-      const amountInCents = Math.round(finalAmount * 100); 
-      
-      console.log('--- MOCK PAYMENT ACTIVE ---');
-      console.log('Simulando cobrança de:', amountInCents, 'centavos');
-      
-      // /* 
-      const paymentParams: PlugPagClassicPaymentInput = {
-        amount: amountInCents,
-        type: pType,
-        installments: pType === PaymentTypes.DEBIT ? 1 : inst,
-        installmentType: iType,
-        printReceipt: true,
-        userReference: `PEDIDO_${orderId?.substring(0, 8)}`,
-      };
+      // 2. Cobra na Maquininha (ou simula em Modo Demo)
+      const amountInCents = Math.round(finalAmount * 100);
 
-      const paymentResult = await doPaymentClassic(paymentParams);
+      if (isDemoMode) {
+        console.log('--- MODO DEMO: cobrança na maquininha ignorada ---');
+      } else {
+        const paymentParams: PlugPagClassicPaymentInput = {
+          amount: amountInCents,
+          type: pType,
+          installments: pType === PaymentTypes.DEBIT ? 1 : inst,
+          installmentType: iType,
+          printReceipt: true,
+          userReference: `PEDIDO_${orderId?.substring(0, 8)}`,
+        };
 
-      if (paymentResult.result !== 0) {
-        throw new Error(paymentResult.message || 'Pagamento não autorizado.');
+        const paymentResult = await doPaymentClassic(paymentParams);
+
+        if (paymentResult.result !== 0) {
+          throw new Error(paymentResult.message || 'Pagamento não autorizado.');
+        }
       }
-      // */
-
-      // const paymentResult = { result: 0 }; // Simula sucesso
 
       // 3. Completa Pedido no Medusa (Se sucesso na máquina)
       await completePurchase(orderId as string, couponId, orderTotal as number, process.env.EXPO_PUBLIC_REGION_ID!, token);
@@ -188,7 +190,8 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       selectedPaymentType, selectPaymentType,
       selectedInstallmentType, selectInstallmentType,
       installments, setInstallments,
-      isProcessingPayment
+      isProcessingPayment,
+      isDemoMode, toggleDemoMode,
     }}>
       {children}
     </PaymentContext.Provider>

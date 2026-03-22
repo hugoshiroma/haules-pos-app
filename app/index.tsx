@@ -60,20 +60,22 @@ export default function PosScreen() {
   const { token, logout, biometricLogin } = useAuth();
   const { items, addItem, removeItem, total, clearCart, discount, finalAmount, isValidatingDiscount } = useCart();
   const { statusConfig, hideStatus, showStatus, isLoading: isGlobalLoading } = useUI();
-  const { 
+  const {
     activateTerminal, confirmOrder, isProcessingPayment,
     showPaymentModal, setShowPaymentModal,
     showInstallmentModal, setShowInstallmentModal,
     selectedPaymentType, selectPaymentType,
     selectedInstallmentType, selectInstallmentType,
     installments, setInstallments,
-    proceedToPayment
+    proceedToPayment,
+    isDemoMode, toggleDemoMode,
   } = usePayment();
   
   const [showLogs, setShowLogs] = useState(false);
   const [logContent, setLogContent] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDemoConfirm, setShowDemoConfirm] = useState(false);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const displayTotal = discount > 0 ? finalAmount : total;
@@ -181,15 +183,23 @@ export default function PosScreen() {
           title: 'Haules PoS',
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: 5 }}>
-              <TouchableOpacity 
-                onPress={() => totalItems > 0 && router.push('/scanner')} 
+              <TouchableOpacity
+                onPress={() => totalItems > 0 && router.push('/scanner')}
                 style={{ marginHorizontal: 10 }}
                 disabled={totalItems === 0}
               >
                 <Ionicons name="scan" size={26} color={totalItems > 0 ? "#2196F3" : "#ccc"} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={activateTerminal} style={{ marginHorizontal: 10 }}>
-                <Ionicons name="card" size={26} color="#2196F3" />
+              {!isDemoMode && (
+                <TouchableOpacity onPress={activateTerminal} style={{ marginHorizontal: 10 }}>
+                  <Ionicons name="card" size={26} color="#2196F3" />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={() => isDemoMode ? toggleDemoMode(false) : setShowDemoConfirm(true)}
+                style={{ marginHorizontal: 10, padding: 4, borderRadius: 6, backgroundColor: isDemoMode ? '#FF6F00' : 'transparent' }}
+              >
+                <Ionicons name="flask" size={20} color={isDemoMode ? '#fff' : '#bbb'} />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setShowLogoutConfirm(true)} style={{ marginHorizontal: 10 }}>
                 <Ionicons name="log-out-outline" size={26} color="#f44336" />
@@ -202,6 +212,13 @@ export default function PosScreen() {
         }} 
       />
       
+      {isDemoMode && (
+        <View style={styles.demoBanner}>
+          <Ionicons name="flask" size={16} color="#fff" />
+          <Text style={styles.demoBannerText}>MODO DEMO — Maquininha desativada</Text>
+        </View>
+      )}
+
       {isProductsLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#2196F3" />
@@ -280,6 +297,29 @@ export default function PosScreen() {
           </View>
         </View>
       </Animated.View>
+
+      {/* Modal Modo Demo */}
+      <Modal visible={showDemoConfirm} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlayCenter}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowDemoConfirm(false)} />
+          <View style={styles.statusBox}>
+            <Ionicons name="flask" size={60} color="#FF6F00" />
+            <Text style={styles.statusText}>Ativar Modo Demo?</Text>
+            <Text style={[styles.statusSubText, { marginTop: 10 }]}>
+              Pedidos serão registrados normalmente, mas {'\n'}<Text style={{ fontWeight: 'bold', color: '#FF6F00' }}>a maquininha NÃO será cobrada.</Text>{'\n\n'}Use apenas para demonstrações. Desative antes de usar em produção.
+            </Text>
+            <TouchableOpacity
+              style={[styles.confirmButtonLarge, { width: '100%', marginTop: 24, backgroundColor: '#FF6F00' }]}
+              onPress={() => { toggleDemoMode(true); setShowDemoConfirm(false); }}
+            >
+              <Text style={styles.confirmButtonText}>Sim, ativar Modo Demo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ marginTop: 15 }} onPress={() => setShowDemoConfirm(false)}>
+              <Text style={{ color: '#666', fontWeight: 'bold' }}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modais (Limpar Carrinho, Logout) */}
       <Modal visible={showClearConfirm} animationType="fade" transparent={true}>
@@ -450,4 +490,6 @@ const styles = StyleSheet.create({
   statusBox: { backgroundColor: '#fff', padding: 30, borderRadius: 24, alignItems: 'center', width: '85%', elevation: 10 },
   statusText: { fontSize: 18, fontWeight: 'bold', marginTop: 15, color: '#333' },
   statusSubText: { fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center' },
+  demoBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FF6F00', paddingVertical: 6 },
+  demoBannerText: { color: '#fff', fontWeight: 'bold', fontSize: 13, letterSpacing: 0.5 },
 });
