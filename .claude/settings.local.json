@@ -28,7 +28,18 @@
       "Bash(find ~/.gradle/caches -name btserial-1.1.0*.jar)",
       "Bash(./gradlew assembleDebug -PbundleInDebug=true)",
       "Bash(./gradlew clean:*)",
-      "Bash(./gradlew assembleDebug -PbundleInDebug=true --rerun-tasks)"
+      "Bash(./gradlew assembleDebug -PbundleInDebug=true --rerun-tasks)",
+      "WebFetch(domain:api.expo.dev)",
+      "WebFetch(domain:expo.dev)",
+      "WebFetch(domain:u.expo.dev)",
+      "Bash(eas build:logs --build-id 0829502c-be18-479e-82d2-51a74481e827)",
+      "Bash(eas build:view --build-id 0829502c-be18-479e-82d2-51a74481e827)",
+      "Bash(npm install:*)",
+      "Bash(eas --version)",
+      "Bash(eas build:view 0829502c-be18-479e-82d2-51a74481e827)",
+      "Bash(eas build:*)",
+      "Bash(find /c/Projetos/service-haules-v2/src -type d -not -path */node_modules/*)",
+      "Bash(grep -r \"TODO\\\\|FIXME\\\\|XXX\\\\|HACK\\\\|BUG\" c:/Projetos/haules-pos-app/app c:/Projetos/haules-pos-app/contexts c:/Projetos/haules-pos-app/lib c:/Projetos/haules-pos-app/hooks --include=*.ts --include=*.tsx)"
     ]
   }
 }

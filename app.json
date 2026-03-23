@@ -55,7 +55,8 @@
         {
           "android": {}
         }
-      ]
+      ],
+      "./plugins/withPagSeguroMaven"
     ],
     "experiments": {
       "typedRoutes": true
