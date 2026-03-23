@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, Button, Dimensions, StyleSheet, Text, View } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from 'react-native';
 import { useCart } from '../contexts/CartContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -12,35 +12,33 @@ export default function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
-  if (!permission) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2196F3" />
-        <Text>Carregando permissões...</Text>
-      </View>
-    );
-  }
+  useEffect(() => {
+    if (permission && !permission.granted && !permission.canAskAgain) return;
+    if (permission && !permission.granted) {
+      requestPermission();
+    }
+  }, [permission]);
 
-  if (!permission.granted) {
+  if (!permission || !permission.granted) {
     return (
-      <View style={styles.center}>
-        <Text style={{ textAlign: 'center', marginBottom: 15 }}>Precisamos da sua permissão para mostrar a câmera</Text>
-        <Button onPress={requestPermission} title="Conceder Permissão" />
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Stack.Screen options={{ headerTransparent: true, headerTitle: '', headerTintColor: '#FFFFFF', headerBackTitle: '' }} />
+        <ActivityIndicator size="large" color="#FF9D1A" />
       </View>
     );
   }
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     if (scanned || isValidatingDiscount) return;
-    
+
     // Formato esperado: userCouponId|userId|email
     const parts = data.split('|');
-    
+
     if (parts.length >= 2) {
       setScanned(true);
       const userCouponId = parts[0].trim();
       const userId = parts[1].trim();
-      
+
       // GAMBIARRA TEMPORÁRIA: O scanner está lendo "+" como " " (espaço).
       let email = parts[2] ? parts[2].trim() : '';
       if (email.includes(' ')) {
@@ -52,37 +50,40 @@ export default function ScannerScreen() {
 
       // 2. Aplica o cupom
       applyCoupon(userCouponId, userId);
-      
+
       // 3. Volta pra tela de vendas
       router.back();
     }
   };
 
   return (
-    <View style={styles.container}>
-      <CameraView
-        style={StyleSheet.absoluteFillObject}
-        facing="back"
-        barcodeScannerSettings={{
-          barcodeTypes: ["qr"],
-        }}
-        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.layerTop}>
-            <Text style={styles.scanText}>Escaneie o QR Code do Cliente</Text>
+    <>
+      <Stack.Screen options={{ headerTransparent: true, headerTitle: '', headerTintColor: '#FFFFFF', headerBackTitle: '' }} />
+      <View style={styles.container}>
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          facing="back"
+          barcodeScannerSettings={{
+            barcodeTypes: ["qr"],
+          }}
+          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.layerTop}>
+              <Text style={styles.scanText}>Escaneie o QR Code do Cliente</Text>
+            </View>
+            <View style={styles.layerCenter}>
+              <View style={styles.layerLeft} />
+              <View style={styles.focused} />
+              <View style={styles.layerRight} />
+            </View>
+            <View style={styles.layerBottom}>
+              <Text style={{ color: '#aaa', marginTop: 20 }}>Posicione o código no quadrado</Text>
+            </View>
           </View>
-          <View style={styles.layerCenter}>
-            <View style={styles.layerLeft} />
-            <View style={styles.focused} />
-            <View style={styles.layerRight} />
-          </View>
-          <View style={styles.layerBottom}>
-            <Text style={{ color: '#aaa', marginTop: 20 }}>Posicione o código no quadrado</Text>
-          </View>
-        </View>
-      </CameraView>
-    </View>
+        </CameraView>
+      </View>
+    </>
   );
 }
 
@@ -91,12 +92,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'black',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,

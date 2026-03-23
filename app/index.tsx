@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
+import { HAULES } from '../constants/Colors';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -147,10 +148,10 @@ export default function PosScreen() {
 
   const getStatusIcon = (type: string) => {
     switch(type) {
-      case 'success': return <Ionicons name="checkmark-circle" size={80} color="#4CAF50" />;
-      case 'error': return <Ionicons name="close-circle" size={80} color="#f44336" />;
-      case 'warning': return <Ionicons name="warning" size={80} color="#ff9800" />;
-      default: return <Ionicons name="information-circle" size={80} color="#2196F3" />;
+      case 'success': return <Ionicons name="checkmark-circle" size={80} color={HAULES.success} />;
+      case 'error': return <Ionicons name="close-circle" size={80} color={HAULES.error} />;
+      case 'warning': return <Ionicons name="warning" size={80} color={HAULES.warning} />;
+      default: return <Ionicons name="information-circle" size={80} color={HAULES.orange} />;
     }
   };
 
@@ -165,11 +166,11 @@ export default function PosScreen() {
   if (showLogs) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20, paddingHorizontal: 16 }]}>
-        <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 16 }}>Logs do Sistema</Text>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 16, color: HAULES.textPrimary }}>Logs do Sistema</Text>
         <ScrollView style={{ flex: 1, backgroundColor: '#000', borderRadius: 12, padding: 12 }}>
           <Text style={{ color: '#0f0', fontFamily: 'monospace', fontSize: 12 }}>{logContent}</Text>
         </ScrollView>
-        <TouchableOpacity style={[styles.confirmButtonLarge, { marginTop: 16, backgroundColor: '#666' }]} onPress={() => setShowLogs(false)}>
+        <TouchableOpacity style={[styles.confirmButtonLarge, { marginTop: 16, backgroundColor: HAULES.bgElevated }]} onPress={() => setShowLogs(false)}>
           <Text style={styles.confirmButtonText}>Fechar Janela</Text>
         </TouchableOpacity>
       </View>
@@ -178,9 +179,12 @@ export default function PosScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen 
-        options={{ 
+      <Stack.Screen
+        options={{
           title: 'Haules PoS',
+          headerStyle: { backgroundColor: HAULES.bgSurface },
+          headerTintColor: HAULES.textPrimary,
+          headerTitleStyle: { color: HAULES.textPrimary, fontWeight: 'bold' },
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: 5 }}>
               <TouchableOpacity
@@ -188,28 +192,28 @@ export default function PosScreen() {
                 style={{ marginHorizontal: 10 }}
                 disabled={totalItems === 0}
               >
-                <Ionicons name="scan" size={26} color={totalItems > 0 ? "#2196F3" : "#ccc"} />
+                <Ionicons name="scan" size={26} color={totalItems > 0 ? HAULES.orange : HAULES.textMuted} />
               </TouchableOpacity>
               {!isDemoMode && (
                 <TouchableOpacity onPress={activateTerminal} style={{ marginHorizontal: 10 }}>
-                  <Ionicons name="card" size={26} color="#2196F3" />
+                  <Ionicons name="card" size={26} color={HAULES.orange} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity
                 onPress={() => isDemoMode ? toggleDemoMode(false) : setShowDemoConfirm(true)}
-                style={{ marginHorizontal: 10, padding: 4, borderRadius: 6, backgroundColor: isDemoMode ? '#FF6F00' : 'transparent' }}
+                style={{ marginHorizontal: 10, padding: 4, borderRadius: 6, backgroundColor: isDemoMode ? HAULES.orangeDim : 'transparent' }}
               >
-                <Ionicons name="flask" size={20} color={isDemoMode ? '#fff' : '#bbb'} />
+                <Ionicons name="flask" size={20} color={isDemoMode ? HAULES.orange : HAULES.textMuted} />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setShowLogoutConfirm(true)} style={{ marginHorizontal: 10 }}>
-                <Ionicons name="log-out-outline" size={26} color="#f44336" />
+                <Ionicons name="log-out-outline" size={26} color={HAULES.error} />
               </TouchableOpacity>
               <TouchableOpacity onPress={async () => { setLogContent(await getLogContent()); setShowLogs(true); }} style={{ marginLeft: 10 }}>
-                <Ionicons name="list" size={26} color="#2196F3" />
+                <Ionicons name="list" size={26} color={HAULES.textSecondary} />
               </TouchableOpacity>
             </View>
           )
-        }} 
+        }}
       />
       
       {isDemoMode && (
@@ -221,8 +225,8 @@ export default function PosScreen() {
 
       {isProductsLoading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#2196F3" />
-          <Text style={{ marginTop: 15, color: '#666', fontWeight: 'bold' }}>Carregando produtos...</Text>
+          <ActivityIndicator size="large" color={HAULES.orange} />
+          <Text style={{ marginTop: 15, color: HAULES.textSecondary, fontWeight: 'bold' }}>Carregando produtos...</Text>
         </View>
       ) : (
         <FlatList
@@ -231,7 +235,7 @@ export default function PosScreen() {
           keyExtractor={(item) => item.id}
           numColumns={2}
           contentContainerStyle={[styles.list, { paddingBottom: 150 }]}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#2196F3']} tintColor="#2196F3" />}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={[HAULES.orange]} tintColor={HAULES.orange} />}
         />
       )}
 
@@ -303,19 +307,19 @@ export default function PosScreen() {
         <View style={styles.modalOverlayCenter}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowDemoConfirm(false)} />
           <View style={styles.statusBox}>
-            <Ionicons name="flask" size={60} color="#FF6F00" />
+            <Ionicons name="flask" size={60} color={HAULES.orange} />
             <Text style={styles.statusText}>Ativar Modo Demo?</Text>
             <Text style={[styles.statusSubText, { marginTop: 10 }]}>
-              Pedidos serão registrados normalmente, mas {'\n'}<Text style={{ fontWeight: 'bold', color: '#FF6F00' }}>a maquininha NÃO será cobrada.</Text>{'\n\n'}Use apenas para demonstrações. Desative antes de usar em produção.
+              Pedidos serão registrados normalmente, mas {'\n'}<Text style={{ fontWeight: 'bold', color: HAULES.orange }}>a maquininha NÃO será cobrada.</Text>{'\n\n'}Use apenas para demonstrações. Desative antes de usar em produção.
             </Text>
             <TouchableOpacity
-              style={[styles.confirmButtonLarge, { width: '100%', marginTop: 24, backgroundColor: '#FF6F00' }]}
+              style={[styles.confirmButtonLarge, { width: '100%', marginTop: 24, backgroundColor: HAULES.orange }]}
               onPress={() => { toggleDemoMode(true); setShowDemoConfirm(false); }}
             >
               <Text style={styles.confirmButtonText}>Sim, ativar Modo Demo</Text>
             </TouchableOpacity>
             <TouchableOpacity style={{ marginTop: 15 }} onPress={() => setShowDemoConfirm(false)}>
-              <Text style={{ color: '#666', fontWeight: 'bold' }}>Cancelar</Text>
+              <Text style={{ color: HAULES.textSecondary, fontWeight: 'bold' }}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -326,13 +330,13 @@ export default function PosScreen() {
         <View style={styles.modalOverlayCenter}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowClearConfirm(false)} />
           <View style={styles.statusBox}>
-            <Ionicons name="trash" size={60} color="#ff5252" />
+            <Ionicons name="trash" size={60} color={HAULES.error} />
             <Text style={styles.statusText}>Limpar Carrinho?</Text>
-            <TouchableOpacity style={[styles.confirmButtonLarge, {width: '100%', marginTop: 20, backgroundColor: '#ff5252'}]} onPress={handleClearCart}>
+            <TouchableOpacity style={[styles.confirmButtonLarge, {width: '100%', marginTop: 20, backgroundColor: HAULES.error}]} onPress={handleClearCart}>
               <Text style={styles.confirmButtonText}>Sim, Limpar Tudo</Text>
             </TouchableOpacity>
             <TouchableOpacity style={{marginTop: 15}} onPress={() => setShowClearConfirm(false)}>
-              <Text style={{color: '#666', fontWeight: 'bold'}}>Cancelar</Text>
+              <Text style={{color: HAULES.textSecondary, fontWeight: 'bold'}}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -342,16 +346,16 @@ export default function PosScreen() {
         <View style={styles.modalOverlayCenter}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowLogoutConfirm(false)} />
           <View style={styles.statusBox}>
-            <Ionicons name="log-out" size={60} color="#f44336" />
+            <Ionicons name="log-out" size={60} color={HAULES.error} />
             <Text style={styles.statusText}>Sair do Sistema?</Text>
-            <TouchableOpacity style={[styles.confirmButtonLarge, {width: '100%', marginTop: 20, backgroundColor: '#f44336'}]} onPress={() => handleLogout(false)}>
+            <TouchableOpacity style={[styles.confirmButtonLarge, {width: '100%', marginTop: 20, backgroundColor: HAULES.error}]} onPress={() => handleLogout(false)}>
               <Text style={styles.confirmButtonText}>Sair agora</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.confirmButtonLarge, {width: '100%', marginTop: 10, backgroundColor: '#666'}]} onPress={() => handleLogout(true)}>
+            <TouchableOpacity style={[styles.confirmButtonLarge, {width: '100%', marginTop: 10, backgroundColor: HAULES.bgElevated}]} onPress={() => handleLogout(true)}>
               <Text style={styles.confirmButtonText}>Sair e Limpar Biometria</Text>
             </TouchableOpacity>
             <TouchableOpacity style={{marginTop: 15}} onPress={() => setShowLogoutConfirm(false)}>
-              <Text style={{color: '#2196F3', fontWeight: 'bold'}}>Voltar</Text>
+              <Text style={{color: HAULES.orange, fontWeight: 'bold'}}>Voltar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -362,16 +366,16 @@ export default function PosScreen() {
         <View style={styles.modalOverlayCenter}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPaymentModal(false)} />
           <View style={styles.statusBox}>
-            <Ionicons name="card" size={60} color="#2196F3" />
+            <Ionicons name="card" size={60} color={HAULES.orange} />
             <Text style={styles.statusText}>Forma de Pagamento</Text>
-            <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: '#4CAF50' }]} onPress={() => selectPaymentType(PaymentTypes.CREDIT)}>
+            <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: HAULES.success }]} onPress={() => selectPaymentType(PaymentTypes.CREDIT)}>
               <Text style={styles.confirmButtonText}>💳 Crédito</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 10, backgroundColor: '#2196F3' }]} onPress={() => selectPaymentType(PaymentTypes.DEBIT)}>
-              <Text style={styles.confirmButtonText}>💰 Débito</Text>
+            <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 10, backgroundColor: HAULES.orange }]} onPress={() => selectPaymentType(PaymentTypes.DEBIT)}>
+              <Text style={[styles.confirmButtonText, { color: HAULES.bg }]}>💰 Débito</Text>
             </TouchableOpacity>
             <TouchableOpacity style={{ marginTop: 15 }} onPress={() => setShowPaymentModal(false)}>
-              <Text style={{ color: '#666', fontWeight: 'bold' }}>Cancelar</Text>
+              <Text style={{ color: HAULES.textSecondary, fontWeight: 'bold' }}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -381,40 +385,40 @@ export default function PosScreen() {
         <View style={styles.modalOverlayCenter}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowInstallmentModal(false)} />
           <View style={styles.statusBox}>
-            <Ionicons name="calculator" size={60} color="#FF9800" />
+            <Ionicons name="calculator" size={60} color={HAULES.orange} />
             <Text style={styles.statusText}>Parcelamento</Text>
             {selectedPaymentType === PaymentTypes.CREDIT ? (
               <>
-                <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: '#4CAF50' }]} onPress={() => selectInstallmentType(InstallmentTypes.NO_INSTALLMENT)}>
+                <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: HAULES.success }]} onPress={() => selectInstallmentType(InstallmentTypes.NO_INSTALLMENT)}>
                   <Text style={styles.confirmButtonText}>À Vista</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 10, backgroundColor: '#FF9800' }]} onPress={() => selectInstallmentType(InstallmentTypes.BUYER_INSTALLMENT)}>
-                  <Text style={styles.confirmButtonText}>Parcelado</Text>
+                <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 10, backgroundColor: HAULES.orange }]} onPress={() => selectInstallmentType(InstallmentTypes.BUYER_INSTALLMENT)}>
+                  <Text style={[styles.confirmButtonText, { color: HAULES.bg }]}>Parcelado</Text>
                 </TouchableOpacity>
                 {selectedInstallmentType === InstallmentTypes.BUYER_INSTALLMENT && (
                   <View style={{ width: '100%', marginTop: 20 }}>
                      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 15 }}>
-                      <TouchableOpacity style={{ backgroundColor: '#ddd', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }} onPress={() => setInstallments(Math.max(2, installments - 1))}>
-                        <Text style={{ fontSize: 24, fontWeight: 'bold' }}>-</Text>
+                      <TouchableOpacity style={{ backgroundColor: HAULES.bgElevated, width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }} onPress={() => setInstallments(Math.max(2, installments - 1))}>
+                        <Text style={{ fontSize: 24, fontWeight: 'bold', color: HAULES.textPrimary }}>-</Text>
                       </TouchableOpacity>
-                      <Text style={{ fontSize: 32, fontWeight: 'bold', minWidth: 50, textAlign: 'center' }}>{installments}x</Text>
-                      <TouchableOpacity style={{ backgroundColor: '#ddd', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }} onPress={() => setInstallments(Math.min(18, installments + 1))}>
-                        <Text style={{ fontSize: 24, fontWeight: 'bold' }}>+</Text>
+                      <Text style={{ fontSize: 32, fontWeight: 'bold', minWidth: 50, textAlign: 'center', color: HAULES.textPrimary }}>{installments}x</Text>
+                      <TouchableOpacity style={{ backgroundColor: HAULES.bgElevated, width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }} onPress={() => setInstallments(Math.min(18, installments + 1))}>
+                        <Text style={{ fontSize: 24, fontWeight: 'bold', color: HAULES.textPrimary }}>+</Text>
                       </TouchableOpacity>
                     </View>
-                    <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: '#4CAF50' }]} onPress={proceedToPayment}>
+                    <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: HAULES.success }]} onPress={proceedToPayment}>
                       <Text style={styles.confirmButtonText}>Confirmar {installments}x</Text>
                     </TouchableOpacity>
                   </View>
                 )}
               </>
             ) : (
-              <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: '#4CAF50' }]} onPress={() => selectInstallmentType(InstallmentTypes.NO_INSTALLMENT)}>
+              <TouchableOpacity style={[styles.confirmButtonLarge, { width: '100%', marginTop: 20, backgroundColor: HAULES.success }]} onPress={() => selectInstallmentType(InstallmentTypes.NO_INSTALLMENT)}>
                 <Text style={styles.confirmButtonText}>Confirmar Pagamento</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={{ marginTop: 15 }} onPress={() => setShowInstallmentModal(false)}>
-              <Text style={{ color: '#666', fontWeight: 'bold' }}>Voltar</Text>
+              <Text style={{ color: HAULES.textSecondary, fontWeight: 'bold' }}>Voltar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -427,7 +431,7 @@ export default function PosScreen() {
           <View style={[styles.statusBox, { marginBottom: insets.bottom + 20 }]}>
             {(isGlobalLoading || isProcessingPayment || isValidatingDiscount) ? (
               <>
-                <ActivityIndicator size="large" color="#4CAF50" />
+                <ActivityIndicator size="large" color={HAULES.orange} />
                 <Text style={styles.statusText}>{isValidatingDiscount ? 'Validando Cupom...' : 'Processando...'}</Text>
               </>
             ) : (
@@ -450,46 +454,46 @@ export default function PosScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f0f0' },
+  container: { flex: 1, backgroundColor: HAULES.bg },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { padding: 8 },
-  card: { flex: 1, margin: 8, backgroundColor: '#fff', borderRadius: 12, elevation: 3, overflow: 'hidden' },
-  thumbnailContainer: { width: '100%', height: 100, backgroundColor: '#e0e0e0', position: 'relative' },
+  card: { flex: 1, margin: 8, backgroundColor: HAULES.bgSurface, borderRadius: 12, elevation: 3, overflow: 'hidden' },
+  thumbnailContainer: { width: '100%', height: 100, backgroundColor: HAULES.bgElevated, position: 'relative' },
   thumbnail: { width: '100%', height: '100%' },
-  productTitleOverlay: { position: 'absolute', bottom: 8, left: 8, right: 8, fontSize: 12, fontWeight: 'bold', color: 'black', backgroundColor: 'rgba(255, 255, 255, 0.7)', paddingHorizontal: 4, borderRadius: 4 },
+  productTitleOverlay: { position: 'absolute', bottom: 8, left: 8, right: 8, fontSize: 12, fontWeight: 'bold', color: HAULES.textPrimary, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 4, borderRadius: 4 },
   cardInfo: { padding: 10 },
-  productPrice: { fontSize: 16, color: '#4CAF50', fontWeight: 'bold' },
-  addButton: { position: 'absolute', right: 8, bottom: 8, backgroundColor: '#2196F3', width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  addButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  bottomSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, elevation: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.2, shadowRadius: 5 },
+  productPrice: { fontSize: 16, color: HAULES.success, fontWeight: 'bold' },
+  addButton: { position: 'absolute', right: 8, bottom: 8, backgroundColor: HAULES.orange, width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  addButtonText: { color: HAULES.bg, fontSize: 20, fontWeight: 'bold' },
+  bottomSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: HAULES.bgSurface, borderTopLeftRadius: 24, borderTopRightRadius: 24, elevation: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.2, shadowRadius: 5 },
   sheetHandleArea: { alignItems: 'center', paddingTop: 12 },
-  handleBar: { width: 40, height: 5, backgroundColor: '#e0e0e0', borderRadius: 3, marginBottom: 8 },
+  handleBar: { width: 40, height: 5, backgroundColor: HAULES.border, borderRadius: 3, marginBottom: 8 },
   miniFooter: { alignItems: 'center' },
-  miniFooterText: { fontSize: 16, fontWeight: 'bold' },
-  expandText: { fontSize: 11, color: '#aaa', marginTop: 2 },
+  miniFooterText: { fontSize: 16, fontWeight: 'bold', color: HAULES.textPrimary },
+  expandText: { fontSize: 11, color: HAULES.textMuted, marginTop: 2 },
   sheetContent: { paddingHorizontal: 20, paddingTop: 10 },
-  sheetTitle: { fontSize: 20, fontWeight: 'bold' },
+  sheetTitle: { fontSize: 20, fontWeight: 'bold', color: HAULES.textPrimary },
   clearCartButton: { padding: 5 },
-  cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#f0f0f0' },
-  cartItemTitle: { fontSize: 15, fontWeight: 'bold' },
-  cartItemSub: { fontSize: 13, color: '#666' },
-  cartItemTotal: { fontSize: 15, fontWeight: 'bold', marginRight: 12 },
+  cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: HAULES.border },
+  cartItemTitle: { fontSize: 15, fontWeight: 'bold', color: HAULES.textPrimary },
+  cartItemSub: { fontSize: 13, color: HAULES.textSecondary },
+  cartItemTotal: { fontSize: 15, fontWeight: 'bold', marginRight: 12, color: HAULES.textPrimary },
   quantityActions: { flexDirection: 'row', alignItems: 'center' },
-  removeButton: { backgroundColor: '#ff5252', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  removeButton: { backgroundColor: HAULES.error, width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   removeButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginTop: -2 },
-  inlineAddButton: { backgroundColor: '#4CAF50', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
+  inlineAddButton: { backgroundColor: HAULES.success, width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
   inlineAddButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginTop: -1 },
   sheetFooter: { marginTop: 10 },
   discountRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 5 },
-  discountLabel: { fontSize: 14, color: '#666', fontWeight: 'bold' },
-  discountValue: { fontSize: 14, color: '#4CAF50', fontWeight: 'bold' },
-  confirmButtonLarge: { backgroundColor: '#4CAF50', paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
-  confirmButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  globalLoadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 9999 },
-  statusBox: { backgroundColor: '#fff', padding: 30, borderRadius: 24, alignItems: 'center', width: '85%', elevation: 10 },
-  statusText: { fontSize: 18, fontWeight: 'bold', marginTop: 15, color: '#333' },
-  statusSubText: { fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center' },
-  demoBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FF6F00', paddingVertical: 6 },
-  demoBannerText: { color: '#fff', fontWeight: 'bold', fontSize: 13, letterSpacing: 0.5 },
+  discountLabel: { fontSize: 14, color: HAULES.textSecondary, fontWeight: 'bold' },
+  discountValue: { fontSize: 14, color: HAULES.success, fontWeight: 'bold' },
+  confirmButtonLarge: { backgroundColor: HAULES.orange, paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
+  confirmButtonText: { color: HAULES.bg, fontSize: 16, fontWeight: 'bold' },
+  modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center' },
+  globalLoadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', zIndex: 9999 },
+  statusBox: { backgroundColor: HAULES.bgSurface, padding: 30, borderRadius: 24, alignItems: 'center', width: '85%', elevation: 10 },
+  statusText: { fontSize: 18, fontWeight: 'bold', marginTop: 15, color: HAULES.textPrimary },
+  statusSubText: { fontSize: 14, color: HAULES.textSecondary, marginTop: 8, textAlign: 'center' },
+  demoBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: HAULES.orange, paddingVertical: 6 },
+  demoBannerText: { color: HAULES.bg, fontWeight: 'bold', fontSize: 13, letterSpacing: 0.5 },
 });

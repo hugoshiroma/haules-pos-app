@@ -1,5 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { HAULES } from '../constants/Colors';
 import { UIProvider } from '../contexts/UIContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { CartProvider } from '../contexts/CartContext';
@@ -60,7 +60,6 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
   const { token, isInitialLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -82,14 +81,26 @@ function RootLayoutNav() {
 
   if (isInitialLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#2196F3" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: HAULES.bg }}>
+        <ActivityIndicator size="large" color={HAULES.orange} />
       </View>
     );
   }
 
+  const HaulesTheme = {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      primary: HAULES.orange,
+      background: HAULES.bg,
+      card: HAULES.bgSurface,
+      text: HAULES.textPrimary,
+      border: HAULES.border,
+    },
+  };
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={HaulesTheme}>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: true }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
