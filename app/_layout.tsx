@@ -4,7 +4,7 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, Image, Dimensions } from 'react-native';
 import 'react-native-reanimated';
 
 import { HAULES } from '../constants/Colors';
@@ -14,14 +14,25 @@ import { CartProvider } from '../contexts/CartContext';
 import { PaymentProvider } from '../contexts/PaymentContext';
 
 export {
-  // Catch any errors thrown by the Layout component.
   ErrorBoundary,
 } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
   initialRouteName: 'index',
 };
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+function SplashView() {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}>
+      <Image
+        source={require('../assets/images/haules-logo-white.png')}
+        style={{ width: SCREEN_WIDTH - 80, resizeMode: 'contain' }}
+      />
+    </View>
+  );
+}
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -36,14 +47,13 @@ export default function RootLayout() {
     if (error) throw error;
   }, [error]);
 
+  // Hide native splash immediately — JS SplashView takes over seamlessly (same black bg)
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
+    SplashScreen.hideAsync();
+  }, []);
 
   if (!loaded) {
-    return null;
+    return <SplashView />;
   }
 
   return (
@@ -71,20 +81,14 @@ function RootLayoutNav() {
     const inAuthGroup = segments[0] === 'login';
 
     if (!token && !inAuthGroup) {
-      // Se não tem token e não está na tela de login, manda pro login
       router.replace('/login');
     } else if (token && inAuthGroup) {
-      // Se tem token e está no login, manda pra home
       router.replace('/');
     }
   }, [token, isInitialLoading, segments]);
 
   if (isInitialLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: HAULES.bg }}>
-        <ActivityIndicator size="large" color={HAULES.orange} />
-      </View>
-    );
+    return <SplashView />;
   }
 
   const HaulesTheme = {

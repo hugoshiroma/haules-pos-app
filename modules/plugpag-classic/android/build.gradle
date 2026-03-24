@@ -34,4 +34,5 @@ dependencies {
   implementation "com.facebook.react:react-android"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.0"
   implementation 'br.com.uol.pagseguro:plugpag:3.0.0'
+  implementation 'com.google.android.material:material:1.11.0'
 }
