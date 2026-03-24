@@ -181,10 +181,16 @@ export default function PosScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Haules PoS',
+          headerTitle: () => (
+            <Image
+              source={require('../assets/images/haules-logo.png')}
+              style={{ width: 90, height: 36 }}
+              resizeMode="contain"
+              tintColor="#FFFFFF"
+            />
+          ),
           headerStyle: { backgroundColor: HAULES.bgSurface },
           headerTintColor: HAULES.textPrimary,
-          headerTitleStyle: { color: HAULES.textPrimary, fontWeight: 'bold' },
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingRight: 5 }}>
               <TouchableOpacity

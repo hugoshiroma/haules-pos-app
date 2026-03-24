@@ -3,8 +3,8 @@ import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -92,10 +92,12 @@ export default function LoginScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 20 }]}>
         <View style={styles.headerArea}>
-          <View style={styles.logoContainer}>
-            <Text style={{ fontWeight: '900', fontSize: 40, color: HAULES.orange }}>H</Text>
-          </View>
-          <Text style={styles.title}>Haules PoS</Text>
+          <Image
+            source={require('../assets/images/haules-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            tintColor="#FFFFFF"
+          />
           <Text style={styles.subtitle}>Acesse sua conta para começar</Text>
         </View>
 
@@ -197,7 +199,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: HAULES.bg },
   scrollContent: { flexGrow: 1, paddingHorizontal: 30, justifyContent: 'center' },
   headerArea: { alignItems: 'center', marginBottom: 40 },
-  logoContainer: { width: 100, height: 100, backgroundColor: HAULES.bgSurface, borderRadius: 50, justifyContent: 'center', alignItems: 'center', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, marginBottom: 20, borderWidth: 1, borderColor: HAULES.orangeDim },
+  logo: { width: 160, height: 80, marginBottom: 20 },
   title: { fontSize: 28, fontWeight: 'bold', color: HAULES.orange },
   subtitle: { fontSize: 16, color: HAULES.textSecondary, marginTop: 5 },
   formCard: { backgroundColor: HAULES.bgSurface, borderRadius: 20, padding: 25, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, borderWidth: 1, borderColor: HAULES.border },
