@@ -31,11 +31,28 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.75;
 const MINI_FOOTER_HEIGHT = 80;
 
-const ProductCard = ({ item, onAddToCart }: { item: Product, onAddToCart: (item: any) => void }) => {
+const ProductCard = ({
+  item,
+  onAddToCart,
+  onSelectVariant,
+}: {
+  item: Product;
+  onAddToCart: (item: any) => void;
+  onSelectVariant: (product: Product) => void;
+}) => {
+  const hasMultipleVariants = item.variants.length > 1;
   const variant = item.variants[0];
   const price = variant?.prices[0];
   if (!variant || !price) return null;
-  
+
+  const minPrice = hasMultipleVariants
+    ? Math.min(...item.variants.flatMap((v) => v.prices.map((p) => p.amount)))
+    : price.amount;
+
+  const displayPrice = hasMultipleVariants
+    ? `a partir de R$ ${(minPrice / 100).toFixed(2)}`
+    : `R$ ${(price.amount / 100).toFixed(2)}`;
+
   return (
     <View style={styles.card}>
       <View style={styles.thumbnailContainer}>
@@ -43,9 +60,18 @@ const ProductCard = ({ item, onAddToCart }: { item: Product, onAddToCart: (item:
         <Text style={styles.productTitleOverlay} numberOfLines={2}>{item.title}</Text>
       </View>
       <View style={styles.cardInfo}>
-        <Text style={styles.productPrice}>R$ {(price.amount / 100).toFixed(2)}</Text>
+        <Text style={styles.productPrice}>{displayPrice}</Text>
       </View>
-      <TouchableOpacity style={styles.addButton} onPress={() => onAddToCart({ id: variant.id, product_id: item.id, title: item.title, price: price.amount / 100 })}>
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => {
+          if (hasMultipleVariants) {
+            onSelectVariant(item);
+          } else {
+            onAddToCart({ id: variant.id, product_id: item.id, title: item.title, price: price.amount / 100 });
+          }
+        }}
+      >
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
     </View>
@@ -77,6 +103,13 @@ export default function PosScreen() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [variantProduct, setVariantProduct] = useState<Product | null>(null);
+
+  const handleSelectVariant = (product: Product) => {
+    setVariantProduct(product);
+    setShowVariantModal(true);
+  };
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const displayTotal = discount > 0 ? finalAmount : total;
@@ -237,7 +270,13 @@ export default function PosScreen() {
       ) : (
         <FlatList
           data={products}
-          renderItem={({ item }) => <ProductCard item={item} onAddToCart={addItem} />}
+          renderItem={({ item }) => (
+            <ProductCard
+              item={item}
+              onAddToCart={addItem}
+              onSelectVariant={handleSelectVariant}
+            />
+          )}
           keyExtractor={(item) => item.id}
           numColumns={2}
           contentContainerStyle={[styles.list, { paddingBottom: 150 }]}
@@ -307,6 +346,56 @@ export default function PosScreen() {
           </View>
         </View>
       </Animated.View>
+
+      {/* Modal Seleção de Variante */}
+      <Modal visible={showVariantModal} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlayCenter}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowVariantModal(false)} />
+          <View style={[styles.statusBox, { width: '90%' }]}>
+            <Ionicons name="options-outline" size={44} color={HAULES.orange} />
+            <Text style={styles.statusText}>{variantProduct?.title}</Text>
+            <Text style={[styles.statusSubText, { marginBottom: 16 }]}>Escolha uma opção:</Text>
+            <ScrollView style={{ width: '100%', maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+              {variantProduct?.variants.map((variant) => {
+                const price = variant.prices[0];
+                if (!price) return null;
+                return (
+                  <TouchableOpacity
+                    key={variant.id}
+                    style={[styles.confirmButtonLarge, {
+                      width: '100%',
+                      marginBottom: 10,
+                      backgroundColor: HAULES.bgElevated,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      paddingHorizontal: 16,
+                    }]}
+                    onPress={() => {
+                      addItem({
+                        id: variant.id,
+                        product_id: variantProduct.id,
+                        title: `${variantProduct.title} (${variant.title})`,
+                        price: price.amount / 100,
+                      });
+                      setShowVariantModal(false);
+                    }}
+                  >
+                    <Text style={[styles.confirmButtonText, { color: HAULES.textPrimary }]}>
+                      {variant.title}
+                    </Text>
+                    <Text style={[styles.confirmButtonText, { color: HAULES.orange }]}>
+                      R$ {(price.amount / 100).toFixed(2)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity style={{ marginTop: 12 }} onPress={() => setShowVariantModal(false)}>
+              <Text style={{ color: HAULES.textSecondary, fontWeight: 'bold' }}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal Modo Demo */}
       <Modal visible={showDemoConfirm} animationType="fade" transparent={true}>
