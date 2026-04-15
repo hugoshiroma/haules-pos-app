@@ -122,8 +122,17 @@ export default function PosScreen() {
   const [collections, setCollections] = useState<Collection[]>([]);
 
   useEffect(() => {
+    const ORDER = ['Brejas', 'Caiporas', 'Drinques', 'Sem álcool', 'Doses', 'Laricas'];
     medusaAdmin.store.collection.list().then(({ collections: cols }) => {
-      setCollections(cols.map((c: any) => ({ id: c.id, title: c.title })));
+      const mapped = cols.map((c: any) => ({ id: c.id, title: c.title }));
+      mapped.sort((a: Collection, b: Collection) => {
+        const ia = ORDER.indexOf(a.title);
+        const ib = ORDER.indexOf(b.title);
+        const ra = ia === -1 ? ORDER.length : ia;
+        const rb = ib === -1 ? ORDER.length : ib;
+        return ra - rb;
+      });
+      setCollections(mapped);
     }).catch(() => {});
   }, []);
 
