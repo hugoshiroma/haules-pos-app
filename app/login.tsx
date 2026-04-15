@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HAULES } from '../constants/Colors';
 import { useAuth } from '../contexts/AuthContext';
 import { useUI } from '../contexts/UIContext';
+import { requestEmployeePasswordReset } from '../lib/supabase';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -33,6 +34,9 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   // Redireciona se já estiver logado
   useEffect(() => {
@@ -73,6 +77,23 @@ export default function LoginScreen() {
     } catch (err) {
       showStatus('error', 'Falha Biometria', 'Ocorreu um erro ao tentar usar a biometria.');
     }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail) {
+      showStatus('warning', 'E-mail obrigatório', 'Digite seu e-mail para continuar.');
+      return;
+    }
+    setIsSendingReset(true);
+    const [error] = await requestEmployeePasswordReset(forgotEmail);
+    setIsSendingReset(false);
+    if (error) {
+      showStatus('error', 'Erro', 'Não foi possível enviar o e-mail. Tente novamente.');
+      return;
+    }
+    setShowForgotPassword(false);
+    setForgotEmail('');
+    showStatus('success', 'E-mail enviado!', 'Se o e-mail estiver cadastrado, você receberá um link de redefinição em breve.');
   };
 
   const getStatusIcon = (type: string) => {
@@ -148,6 +169,14 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.forgotButton}
+            onPress={() => setShowForgotPassword(true)}
+            disabled={isGlobalLoading}
+          >
+            <Text style={styles.forgotButtonText}>Esqueci minha senha</Text>
+          </TouchableOpacity>
+
           {hasSavedCredentials && isBiometricSupported && (
             <TouchableOpacity
               style={styles.biometricButton}
@@ -164,6 +193,47 @@ export default function LoginScreen() {
           <Text style={styles.versionText}>v1.0.0 • Bar do Haules</Text>
         </View>
       </ScrollView>
+
+      {/* Modal de recuperação de senha */}
+      {showForgotPassword && (
+        <View style={styles.globalLoadingOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => { setShowForgotPassword(false); setForgotEmail(''); }} />
+          <View style={styles.statusBox}>
+            <Ionicons name="lock-open-outline" size={48} color={HAULES.orange} />
+            <Text style={[styles.statusText, { marginTop: 12 }]}>Recuperar senha</Text>
+            <Text style={[styles.statusSubText, { marginBottom: 16 }]}>
+              Digite seu e-mail de funcionário. Você receberá um link para criar uma nova senha.
+            </Text>
+            <View style={[styles.inputContainer, { width: '100%', marginBottom: 16 }]}>
+              <Ionicons name="mail-outline" size={20} color={HAULES.textPrimary} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="seu@email.com"
+                placeholderTextColor={HAULES.textMuted}
+                value={forgotEmail}
+                onChangeText={setForgotEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoFocus
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.loginButton, { width: '100%' }, isSendingReset && styles.disabledButton]}
+              onPress={handleForgotPassword}
+              disabled={isSendingReset}
+            >
+              {isSendingReset ? (
+                <ActivityIndicator color={HAULES.bg} />
+              ) : (
+                <Text style={styles.loginButtonText}>Enviar link de recuperação</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={{ marginTop: 14 }} onPress={() => { setShowForgotPassword(false); setForgotEmail(''); }}>
+              <Text style={[styles.forgotButtonText, { fontSize: 14 }]}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Overlay de Status Global (Sucesso, Erro, Warning) */}
       {(statusConfig.visible || isGlobalLoading) && (
@@ -211,6 +281,8 @@ const styles = StyleSheet.create({
   loginButton: { backgroundColor: HAULES.orange, height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 10, elevation: 2 },
   disabledButton: { backgroundColor: HAULES.orangeMuted },
   loginButtonText: { color: HAULES.bg, fontSize: 18, fontWeight: 'bold' },
+  forgotButton: { alignItems: 'center', marginTop: 14, padding: 6 },
+  forgotButtonText: { color: HAULES.textSecondary, fontSize: 13, fontWeight: '500' },
   biometricButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 20, padding: 10 },
   biometricButtonText: { color: HAULES.orange, fontSize: 16, fontWeight: 'bold', marginLeft: 10 },
   footer: { marginTop: 40, alignItems: 'center' },

@@ -102,6 +102,37 @@ export async function loginEmployee(
   }
 }
 
+export async function requestEmployeePasswordReset(
+  email: string,
+): Promise<Response<{ message: string }>> {
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/request-employee-password-reset`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          apikey: supabaseAnonKey,
+        },
+        body: JSON.stringify({ email }),
+      },
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorMessage =
+        data.message || data.error || `Erro na Edge Function: ${response.status}`;
+      return [errorMessage, undefined];
+    }
+
+    return [undefined, data];
+  } catch (error: any) {
+    return [error.message || "Erro desconhecido ao chamar Edge Function", undefined];
+  }
+}
+
 type ItemsInCartType = {
   product_id: string;
   quantity: number;
