@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
-import { HAULES } from '../constants/Colors';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -15,19 +14,27 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HAULES } from '../constants/Colors';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { usePayment } from '../contexts/PaymentContext';
 import { useUI } from '../contexts/UIContext';
 import { Product, useProducts } from '../hooks/useProducts';
 import { getLogContent } from '../lib/logging';
+import { medusaAdmin } from '../lib/medusa';
 import { InstallmentTypes, PaymentTypes } from '../lib/plugpagClassic';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// 8 list padding on each side + 8 card margin on each outer side = 48 total horizontal taken
+const CARD_WIDTH = Math.floor((SCREEN_WIDTH - 48) / 2);
+const PAGE_SIZE = 20;
+
+type Collection = { id: string; title: string };
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.75;
 const MINI_FOOTER_HEIGHT = 80;
 
@@ -50,30 +57,32 @@ const ProductCard = ({
     : price.amount;
 
   const displayPrice = hasMultipleVariants
-    ? `a partir de R$ ${(minPrice / 100).toFixed(2)}`
+    ? `a partir de\nR$ ${(minPrice / 100).toFixed(2)}`
     : `R$ ${(price.amount / 100).toFixed(2)}`;
 
   return (
     <View style={styles.card}>
       <View style={styles.thumbnailContainer}>
         <Image style={styles.thumbnail} source={{ uri: item.thumbnail || 'https://via.placeholder.com/100' }} />
-        <Text style={styles.productTitleOverlay} numberOfLines={2}>{item.title}</Text>
+        <View style={styles.productTitleOverlayContainer}>
+          <Text style={styles.productTitleOverlay} numberOfLines={2}>{item.title}</Text>
+        </View>
       </View>
-      <View style={styles.cardInfo}>
-        <Text style={styles.productPrice}>{displayPrice}</Text>
+      <View style={styles.cardBottom}>
+        <Text style={styles.productPrice} numberOfLines={2}>{displayPrice}</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => {
+            if (hasMultipleVariants) {
+              onSelectVariant(item);
+            } else {
+              onAddToCart({ id: variant.id, product_id: item.id, title: item.title, price: price.amount / 100 });
+            }
+          }}
+        >
+          <Text style={styles.addButtonText}>+</Text>
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => {
-          if (hasMultipleVariants) {
-            onSelectVariant(item);
-          } else {
-            onAddToCart({ id: variant.id, product_id: item.id, title: item.title, price: price.amount / 100 });
-          }
-        }}
-      >
-        <Text style={styles.addButtonText}>+</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -81,7 +90,7 @@ const ProductCard = ({
 export default function PosScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  
+
   // Hooks segregados
   const { products, isLoading: isProductsLoading, isRefreshing, refresh } = useProducts();
   const { token, logout, biometricLogin } = useAuth();
@@ -105,6 +114,45 @@ export default function PosScreen() {
   const [showDemoConfirm, setShowDemoConfirm] = useState(false);
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [variantProduct, setVariantProduct] = useState<Product | null>(null);
+
+  // Search, filter, pagination
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [collections, setCollections] = useState<Collection[]>([]);
+
+  useEffect(() => {
+    medusaAdmin.store.collection.list().then(({ collections: cols }) => {
+      setCollections(cols.map((c: any) => ({ id: c.id, title: c.title })));
+    }).catch(() => {});
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    return products
+      .filter(p => p.variants.length > 0 && p.variants[0]?.prices?.length > 0)
+      .filter(p => !selectedCollection || p.collection_id === selectedCollection)
+      .filter(p => !searchQuery || p.title.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [products, selectedCollection, searchQuery]);
+
+  const displayedProducts = useMemo(() => {
+    return filteredProducts.slice(0, visibleCount);
+  }, [filteredProducts, visibleCount]);
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    setVisibleCount(PAGE_SIZE);
+  };
+
+  const handleCollectionSelect = (id: string | null) => {
+    setSelectedCollection(id);
+    setVisibleCount(PAGE_SIZE);
+  };
+
+  const handleLoadMore = () => {
+    if (visibleCount < filteredProducts.length) {
+      setVisibleCount(prev => Math.min(prev + PAGE_SIZE, filteredProducts.length));
+    }
+  };
 
   const handleSelectVariant = (product: Product) => {
     setVariantProduct(product);
@@ -262,6 +310,50 @@ export default function PosScreen() {
         </View>
       )}
 
+      {/* Search + Categories — fixed above the list */}
+      <View style={styles.filterArea}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={18} color={HAULES.textMuted} style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar produto..."
+            placeholderTextColor={HAULES.textMuted}
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            autoCapitalize="none"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => handleSearchChange('')}>
+              <Ionicons name="close-circle" size={18} color={HAULES.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+        {collections.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoriesScroll}
+            contentContainerStyle={styles.categoriesContent}
+          >
+            <TouchableOpacity
+              style={[styles.categoryChip, !selectedCollection && styles.categoryChipActive]}
+              onPress={() => handleCollectionSelect(null)}
+            >
+              <Text style={[styles.categoryChipText, !selectedCollection && styles.categoryChipTextActive]}>Todos</Text>
+            </TouchableOpacity>
+            {collections.map(col => (
+              <TouchableOpacity
+                key={col.id}
+                style={[styles.categoryChip, selectedCollection === col.id && styles.categoryChipActive]}
+                onPress={() => handleCollectionSelect(col.id)}
+              >
+                <Text style={[styles.categoryChipText, selectedCollection === col.id && styles.categoryChipTextActive]}>{col.title}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+
       {isProductsLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={HAULES.orange} />
@@ -269,7 +361,7 @@ export default function PosScreen() {
         </View>
       ) : (
         <FlatList
-          data={products}
+          data={displayedProducts}
           renderItem={({ item }) => (
             <ProductCard
               item={item}
@@ -279,8 +371,17 @@ export default function PosScreen() {
           )}
           keyExtractor={(item) => item.id}
           numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={[styles.list, { paddingBottom: 150 }]}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={[HAULES.orange]} tintColor={HAULES.orange} />}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListEmptyComponent={
+            <View style={styles.center}>
+              <Ionicons name="search-outline" size={40} color={HAULES.textMuted} />
+              <Text style={{ marginTop: 12, color: HAULES.textSecondary }}>Nenhum produto encontrado</Text>
+            </View>
+          }
         />
       )}
 
@@ -551,14 +652,25 @@ export default function PosScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: HAULES.bg },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  filterArea: { backgroundColor: HAULES.bgSurface, borderBottomWidth: 1, borderBottomColor: HAULES.border, paddingTop: 8 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: HAULES.bgInput, borderRadius: 10, marginHorizontal: 12, marginBottom: 8, paddingHorizontal: 12, height: 42, borderWidth: 1, borderColor: HAULES.border },
+  searchInput: { flex: 1, fontSize: 15, color: HAULES.textPrimary },
+  categoriesScroll: { flexGrow: 0 },
+  categoriesContent: { paddingHorizontal: 12, paddingBottom: 10, gap: 8, flexDirection: 'row' },
+  categoryChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: HAULES.bgElevated, borderWidth: 1, borderColor: HAULES.border },
+  categoryChipActive: { backgroundColor: HAULES.orange, borderColor: HAULES.orange },
+  categoryChipText: { fontSize: 13, fontWeight: '600', color: HAULES.textSecondary },
+  categoryChipTextActive: { color: HAULES.bg },
+  columnWrapper: { justifyContent: 'flex-start' },
   list: { padding: 8 },
-  card: { flex: 1, margin: 8, backgroundColor: HAULES.bgSurface, borderRadius: 12, elevation: 3, overflow: 'hidden' },
-  thumbnailContainer: { width: '100%', height: 100, backgroundColor: HAULES.bgElevated, position: 'relative' },
+  card: { width: CARD_WIDTH, margin: 8, backgroundColor: HAULES.bgSurface, borderRadius: 12, elevation: 3, overflow: 'hidden' },
+  thumbnailContainer: { width: '100%', height: 100, backgroundColor: HAULES.bgElevated },
   thumbnail: { width: '100%', height: '100%' },
-  productTitleOverlay: { position: 'absolute', bottom: 8, left: 8, right: 8, fontSize: 12, fontWeight: 'bold', color: HAULES.textPrimary, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 4, borderRadius: 4 },
-  cardInfo: { padding: 10 },
-  productPrice: { fontSize: 16, color: HAULES.success, fontWeight: 'bold' },
-  addButton: { position: 'absolute', right: 8, bottom: 8, backgroundColor: HAULES.orange, width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  productTitleOverlayContainer: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center', padding: 6 },
+  productTitleOverlay: { fontSize: 12, fontWeight: 'bold', color: HAULES.textPrimary, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 4, textAlign: 'center' },
+  cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 10 },
+  productPrice: { flex: 1, fontSize: 14, color: HAULES.success, fontWeight: 'bold', marginRight: 8 },
+  addButton: { backgroundColor: HAULES.orange, width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
   addButtonText: { color: HAULES.bg, fontSize: 20, fontWeight: 'bold' },
   bottomSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: HAULES.bgSurface, borderTopLeftRadius: 24, borderTopRightRadius: 24, elevation: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.2, shadowRadius: 5 },
   sheetHandleArea: { alignItems: 'center', paddingTop: 12 },

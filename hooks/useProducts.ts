@@ -4,8 +4,8 @@ import { medusaAdmin } from "../lib/medusa";
 
 // TODO: Instalar a dependência: yarn add @react-native-async-storage/async-storage
 
-const CACHE_KEY = "cached-products";
-const CACHE_TIMESTAMP_KEY = "cached-products-timestamp";
+const CACHE_KEY = "cached-products-v3";
+const CACHE_TIMESTAMP_KEY = "cached-products-v3-timestamp";
 const EIGHT_HOURS = 8 * 60 * 60 * 1000;
 
 // Definindo um tipo mais simples para o produto, para facilitar
@@ -13,6 +13,7 @@ export type Product = {
   id: string;
   title: string;
   thumbnail: string | null;
+  collection_id: string | null;
   variants: {
     id: string;
     title: string;
@@ -24,33 +25,34 @@ export type Product = {
 };
 
 const fetchProducts = async (): Promise<Product[]> => {
-  console.log("Buscando todas as variantes com preços da API Medusa (Admin)...");
-  const variantsResult = await medusaAdmin.admin.productVariant.list();
+  // Usa admin para ambas as chamadas: garante collection_id e todos os campos
+  console.log("Buscando produtos via admin API...");
+  const [productsResult, variantsResult] = await Promise.all([
+    medusaAdmin.admin.product.list({ limit: 500 }),
+    medusaAdmin.admin.productVariant.list({ limit: 500 }),
+  ]);
 
-  console.log("Buscando a lista de produtos da API Medusa (Store)...");
-  const productsResult = await medusaAdmin.store.product.list();
+  console.log(`Produtos recebidos: ${productsResult.products.length}, variantes: ${variantsResult.variants.length}`);
 
-  console.log("Mapeando produtos e preços...");
+  // Monta um Map de variantId → prices para lookup O(1)
+  const pricesByVariantId = new Map(
+    variantsResult.variants.map((v) => [v.id, v.prices ?? []])
+  );
+
   const simplifiedProducts: Product[] = productsResult.products.map(
     (product) => ({
       id: product.id,
       title: product.title,
-      thumbnail: product.thumbnail,
-      variants: product.variants.map((variant) => {
-        // Find the corresponding variant from the admin variantsResult to get its prices
-        const fullVariant = variantsResult.variants.find(
-          (v) => v.id === variant.id,
-        );
-        return {
-          id: variant.id,
-          title: variant.title,
-          prices:
-            fullVariant?.prices?.map((price) => ({
-              ...price,
-              amount: price.amount * 100,
-            })) || [],
-        };
-      }),
+      thumbnail: product.thumbnail ?? null,
+      collection_id: (product as any).collection_id ?? null,
+      variants: (product.variants ?? []).map((variant) => ({
+        id: variant.id,
+        title: variant.title,
+        prices: (pricesByVariantId.get(variant.id) ?? []).map((price) => ({
+          amount: price.amount * 100,
+          currency_code: price.currency_code,
+        })),
+      })),
     }),
   );
 

@@ -51,6 +51,14 @@
       "expo-local-authentication",
       "expo-secure-store",
       [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#000000",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 280
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {}
